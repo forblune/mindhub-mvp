@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마음기록 — 진료실 밖에서도 이어지는 정신과 케어 (데모)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --bg:#0f1623; --panel:#172033; --panel2:#1e2a40; --line:#2b3a55;
+    --text:#e8edf5; --sub:#9fb0c8; --muted:#6b7c98;
+    --accent:#3a82f7; --accent2:#1d9e75; --danger:#e2504a; --danger-bg:#2a1718; --warn:#e6a23c;
+  }
+  body{ font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif; background:var(--bg); color:var(--text); }
+  .top{ display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--line); background:var(--panel); }
+  .top h1{ font-size:17px; font-weight:600; }
+  .top .sub{ font-size:12px; color:var(--sub); margin-top:2px; }
+  .top .toggle{ display:flex; gap:6px; }
+  .tab{ background:var(--panel2); color:var(--sub); border:1px solid var(--line); padding:7px 14px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .tab.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .wrap{ display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:1100px; margin:18px auto; padding:0 18px; }
+  @media(max-width:820px){ .wrap{ grid-template-columns:1fr; } }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; min-height:520px; }
+  .card h2{ font-size:13px; font-weight:600; padding:12px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; color:var(--sub); }
+  .pill{ font-size:11px; color:var(--sub); background:var(--panel2); padding:3px 9px; border-radius:20px; }
+  /* chat */
+  .chat{ flex:1; padding:14px; display:flex; flex-direction:column; gap:9px; overflow-y:auto; max-height:430px; }
+  .msg{ max-width:82%; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.5; }
+  .me{ align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:3px; }
+  .ai{ align-self:flex-start; background:var(--panel2); border-bottom-left-radius:3px; }
+  .sys{ align-self:center; width:100%; font-size:11.5px; color:var(--muted); text-align:center; padding:4px; }
+  .qbox{ align-self:flex-start; width:100%; background:#16223a; border:1px dashed #34507e; border-radius:10px; padding:8px 11px; }
+  .qbox .lbl{ font-size:10.5px; color:#7aa2e0; margin-bottom:3px; }
+  .qbox .q{ font-size:13px; }
+  .safebar{ align-self:center; width:100%; background:var(--danger-bg); border:1px solid #5a2a2a; border-radius:10px; padding:8px 11px; }
+  .safebar .t{ font-size:12px; color:#f0a0a0; font-weight:600; }
+  .safebar .d{ font-size:11.5px; color:#d99; margin-top:3px; }
+  .extract{ align-self:flex-start; width:100%; font-size:10.5px; color:var(--muted); border-left:2px solid var(--line); padding:2px 8px; }
+  .inputbar{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  .inputbar input{ flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; outline:none; }
+  .btn{ background:var(--accent); color:#fff; border:none; border-radius:10px; padding:0 16px; font-size:13.5px; cursor:pointer; font-weight:500; }
+  .btn.sec{ background:var(--panel2); color:var(--sub); border:1px solid var(--line); }
+  .btn.green{ background:var(--accent2); }
+  .demobar{ display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); background:var(--panel2); }
+  /* report */
+  .report{ flex:1; padding:14px; overflow-y:auto; max-height:470px; }
+  .triage{ background:var(--danger-bg); border:1px solid #5a2a2a; border-radius:10px; padding:11px 13px; margin-bottom:12px; }
+  .triage .h{ color:#f07a7a; font-weight:600; font-size:13px; }
+  .triage .b{ color:#d99; font-size:12px; margin-top:4px; }
+  .triage .ev{ color:#bbb; font-size:11.5px; margin-top:6px; background:#1a0f10; border-radius:6px; padding:6px 8px; cursor:pointer; }
+  .sec{ border-top:1px solid var(--line); padding:10px 2px; }
+  .sec:first-child{ border-top:none; }
+  .sec .lbl{ font-size:11px; color:var(--sub); margin-bottom:4px; }
+  .sec .val{ font-size:13.5px; }
+  .sec .val .bad{ color:var(--danger); }
+  .graph{ display:flex; align-items:flex-end; gap:5px; height:54px; margin-top:7px; }
+  .bar{ flex:1; background:var(--accent); border-radius:3px 3px 0 0; min-height:3px; position:relative; }
+  .bar.low{ background:var(--danger); }
+  .bar span{ position:absolute; top:-15px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted); }
+  .bar i{ position:absolute; bottom:-15px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted); font-style:normal; }
+  .note{ background:var(--panel2); border-radius:8px; padding:8px 10px; font-size:11px; color:var(--muted); margin-top:12px; }
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:40px 10px; }
+  .modeltag{ font-size:10px; color:var(--muted); margin-top:8px; text-align:right; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>마음기록 <span style="color:var(--sub);font-weight:400;font-size:13px;">· 진료실 밖에서도 이어지는 정신과 케어</span></h1>
+    <div class="sub">21팀 데모 · 퇴원 환자용 AI 기록·전달 (가상 환자 데이터)</div>
+  </div>
+  <div class="toggle">
+    <button class="tab on" id="tab-both" onclick="setView('both')">나란히</button>
+    <button class="tab" id="tab-patient" onclick="setView('patient')">환자</button>
+    <button class="tab" id="tab-doctor" onclick="setView('doctor')">의사</button>
+  </div>
+</div>
+
+<div class="wrap" id="wrap">
+  <!-- 환자 -->
+  <div class="card" id="patientCard">
+    <h2>환자 화면 — 평소 대화 <span class="pill" id="dday">다음 진료 D-3</span></h2>
+    <div class="chat" id="chat"></div>
+    <div class="inputbar">
+      <input id="msgInput" placeholder="편하게 일상 얘기하듯 써보세요…" onkeydown="if(event.key==='Enter')sendMsg()">
+      <button class="btn" onclick="sendMsg()">전송</button>
+    </div>
+    <div class="demobar">
+      <button class="btn sec" onclick="playDemo()">▶ 데모 시나리오 재생 (3일치)</button>
+      <button class="btn sec" onclick="resetAll()">초기화</button>
+    </div>
+  </div>
+
+  <!-- 의사 -->
+  <div class="card" id="doctorCard">
+    <h2>의사 대시보드 — 진료 전 요약 <span class="pill">최근 기록 기반</span></h2>
+    <div class="report" id="report">
+      <div class="empty">환자 기록이 쌓이면<br>아래 버튼으로 진료 전 요약을 생성하세요.</div>
+    </div>
+    <div class="demobar">
+      <button class="btn green" onclick="makeReport()">진료 전 요약 리포트 생성</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 데이터 ===== */
+let logs = [];               // 하루치 기록 누적
+let dayCounter = 0;
+const RISK_WORDS = ["죽고 싶","죽고싶","다 끝내","끝내고 싶","사라지고 싶","자해"];
+
+/* 실제 연동 시: Render 백엔드 주소를 넣으면 Solar로 추출.
+   비워두면 목업(데모) 모드 — API 없이 동작. 호출 실패 시 자동 목업 폴백. */
+const BACKEND_URL = ""; // 예: "https://21team-solar.onrender.com"
+
+/* 데모 시나리오 (시연용 3일치 가상 대화) */
+const DEMO = [
+  "어제 새벽 3시까지 잠 안 와서 게임했어. 약은 먹었어.",
+  "__무응답__",
+  "요즘 다 끝내고 싶다는 생각이 들어..."
+];
+
+/* ===== 추출 (목업: 규칙 기반) =====
+   TODO(실제 연동): 이 함수를 Solar(Upstage) API 호출로 교체.
+   prompt에 대화를 넣고 {sleep_h, med_taken, mood, stressor}를 JSON으로 받기. */
+function extractSignals(text){
+  const t = text.replace(/\s/g,"");
+  const sig = { sleep_h:null, med_taken:null, mood:null, stressor:null, red_flag:false, evidence:null };
+  // 위험 감지 (항상 우선, 규칙 기반)
+  for(const kw of RISK_WORDS){ if(text.includes(kw)){ sig.red_flag=true; sig.evidence=text; } }
+  // 수면
+  const m = text.match(/(\d+)\s*시간/);
+  if(m) sig.sleep_h = parseFloat(m[1]);
+  else if(/새벽|밤새|못\s*자|잠\s*안|3시까지|안\s*와/.test(text)) sig.sleep_h = 3.0;
+  else if(/푹\s*자|잘\s*잤/.test(text)) sig.sleep_h = 7.0;
+  // 복약
+  if(/약.*(먹었|챙겼|복용)/.test(text)) sig.med_taken = true;
+  else if(/약.*(안\s*먹|안\s*챙|걸렀|빼먹)/.test(text)) sig.med_taken = false;
+  // 기분 (0~10, 낮을수록 우울)
+  if(sig.red_flag) sig.mood = 1;
+  else if(/힘들|우울|무기력|지쳐|괴로/.test(text)) sig.mood = 3;
+  else if(/괜찮|좋|행복|나아/.test(text)) sig.mood = 6;
+  // 스트레스원
+  if(/아빠|엄마|가족|부모/.test(text)) sig.stressor = "가족 갈등";
+  else if(/직장|상사|회사/.test(text)) sig.stressor = "직장 스트레스";
+  else if(/학교|친구/.test(text)) sig.stressor = "대인관계";
+  return sig;
+}
+
+/* 실제 추출: 백엔드 있으면 Solar 결과로 임상 신호 덮어쓰기.
+   위험 감지(red_flag/evidence)는 항상 규칙 기반(클라이언트)으로 유지 — 안전은 API에 의존 금지.
+   실패하면 목업으로 폴백 → 데모 안 깨짐. */
+async function getSignals(text){
+  const mock = extractSignals(text);
+  if(!BACKEND_URL) return mock;
+  try{
+    const r = await fetch(BACKEND_URL + "/extract", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ text })
+    });
+    if(!r.ok) throw new Error("backend");
+    const s = await r.json();
+    return {
+      ...mock, // red_flag·evidence는 규칙 기반 유지
+      sleep_h:   s.sleep_h   ?? mock.sleep_h,
+      med_taken: s.med_taken ?? mock.med_taken,
+      mood:      mock.red_flag ? 1 : (s.mood ?? mock.mood),
+      stressor:  s.stressor  ?? mock.stressor
+    };
+  }catch(e){ return mock; }
+}
+
+/* ===== 채팅 UI ===== */
+function addBubble(cls, html){
+  const c = document.getElementById('chat');
+  const d = document.createElement('div'); d.className='msg '+cls; d.innerHTML=html;
+  if(cls==='sys'||cls==='qbox'||cls==='safebar'||cls==='extract'){ d.className=cls; }
+  c.appendChild(d); c.scrollTop=c.scrollHeight;
+}
+
+async function logMessage(text, isDemo){
+  dayCounter++;
+  if(text==="__무응답__"){
+    addBubble('sys','— 환자 무응답 (이날도 기록됩니다) —');
+    logs.push({ day:dayCounter, text:"(무응답)", answered:false, sleep_h:null, med_taken:null, mood:null, stressor:null, red_flag:false });
+    return;
+  }
+  addBubble('me', escapeHtml(text));
+  const sig = await getSignals(text);
+  logs.push({ day:dayCounter, text:text, answered:true, ...sig });
+
+  // 조용한 추출 표시
+  const picked=[];
+  if(sig.sleep_h!=null) picked.push("수면 "+sig.sleep_h+"h");
+  if(sig.med_taken!=null) picked.push("복약 "+(sig.med_taken?"O":"X"));
+  if(sig.stressor) picked.push("스트레스: "+sig.stressor);
+  if(picked.length) addBubble('extract','👁 조용히 추출 → '+picked.join(" · "));
+
+  // 위험 분기 (안전 우선, 위로로 덮지 않기)
+  if(sig.red_flag){
+    addBubble('ai','오늘 정말 견디기 힘든 하루였구나. 그 무거운 마음을 숨기지 않고 솔직히 말해줘서 고마워.');
+    addBubble('safebar','<div class="t">🛡 안전 — 위기 자원 안내</div><div class="d">혼자 견디게 두지 않을게. 지금 많이 힘들면 자살예방상담전화 <b>109</b>로 연결할 수 있어. 이 마음, 선생님께도 잘 전해둘게.</div>');
+  } else {
+    addBubble('ai', aiReply(sig));
+  }
+
+  // 가끔 묻는 임상 질문 (안 채워진 항목 보완)
+  setTimeout(()=>maybeAskQuestion(sig), 200);
+}
+
+function aiReply(sig){
+  if(sig.sleep_h!=null && sig.sleep_h<=4) return '잠을 거의 못 잤구나. 그럴 때 몸은 좀 어땠어?';
+  if(sig.stressor==="가족 갈등") return '집에 있기 불편했겠다. 그럴 때 너는 어땠어?';
+  return '얘기해줘서 고마워. 오늘 하루는 좀 어땠어?';
+}
+
+let askedToday=false;
+function maybeAskQuestion(sig){
+  if(sig.red_flag) return;
+  if(sig.mood==null && !askedToday){
+    askedToday=true;
+    addBubble('qbox','<div class="lbl">＋ 가끔 묻는 임상 질문</div><div class="q">참, 요즘 기분은 좀 어때요? 약은 잘 챙겼고요?</div>');
+  }
+}
+
+function sendMsg(){
+  const inp=document.getElementById('msgInput');
+  const v=inp.value.trim(); if(!v) return;
+  inp.value=''; askedToday=false;
+  logMessage(v, false);
+}
+
+/* ===== 데모 재생 ===== */
+function playDemo(){
+  resetAll();
+  let i=0;
+  function step(){
+    if(i>=DEMO.length){ setTimeout(makeReport, 500); return; }
+    askedToday=false;
+    logMessage(DEMO[i], true);
+    i++;
+    setTimeout(step, 1100);
+  }
+  step();
+}
+
+/* ===== 리포트 생성 ===== */
+function makeReport(){
+  const el=document.getElementById('report');
+  const real = logs.filter(l=>l.answered);
+  if(logs.length===0){ el.innerHTML='<div class="empty">기록이 없습니다.<br>환자 대화를 입력하거나 데모를 재생하세요.</div>'; return; }
+
+  const red = logs.some(l=>l.red_flag);
+  const ev = (logs.find(l=>l.red_flag)||{}).evidence;
+  const sleepSeries = logs.map(l=>l.sleep_h);
+  const moodVals = real.map(l=>l.mood).filter(v=>v!=null);
+  const medDays = real.filter(l=>l.med_taken===true).length;
+  const medTotal = real.filter(l=>l.med_taken!=null).length;
+  const stressors = [...new Set(real.map(l=>l.stressor).filter(Boolean))];
+  const noResp = logs.filter(l=>!l.answered).length;
+
+  let h='';
+  if(red){
+    h+=`<div class="triage"><div class="h">⚠ 안전 Red Flag — 우선 평가 필요</div>
+        <div class="b">자살 사고 표현 감지 (수동적 자살 사고로 추정). 진료 시작 전 안전부터 평가하세요.</div>
+        <div class="ev" title="원문 보기">근거 원문: "${escapeHtml(ev||'')}" <span style="color:#888">— 클릭(MSE 증거)</span></div></div>`;
+  }
+  // ① 수면·기능
+  const sleepValid = sleepSeries.filter(v=>v!=null);
+  const avg = sleepValid.length? (sleepValid.reduce((a,b)=>a+b,0)/sleepValid.length).toFixed(1):'-';
+  h+=`<div class="sec"><div class="lbl">① 수면·기능</div>
+       <div class="val">${avg!=='-'&&avg<5?'<span class="bad">평균 수면 '+avg+'h (붕괴)</span>':'평균 수면 '+avg+'h'}</div>
+       <div class="graph">${sleepBars(sleepSeries)}</div></div>`;
+  // ② 약물 순응도
+  h+=`<div class="sec"><div class="lbl">② 약물 순응도·부작용</div>
+       <div class="val">복약 ${medTotal?medDays+'/'+medTotal+'일':'기록 없음'}</div></div>`;
+  // ③ 안전
+  h+=`<div class="sec"><div class="lbl">③ 안전·자살 리스크</div>
+       <div class="val">${red?'<span class="bad">위험 신호 감지 (수동적)</span> · 계획/준비 미확인':'특이 위험 신호 없음'}</div></div>`;
+  // ④ 스트레스원
+  h+=`<div class="sec"><div class="lbl">④ 스트레스원·환경</div>
+       <div class="val">${stressors.length?stressors.join(', '):'특이 사항 없음'}</div></div>`;
+  // ⑤ 정신상태·기타
+  const moodTxt = moodVals.length? '기분 평균 '+(moodVals.reduce((a,b)=>a+b,0)/moodVals.length).toFixed(1)+'/10' : '기분 데이터 부족';
+  h+=`<div class="sec"><div class="lbl">⑤ 정신상태·기타</div>
+       <div class="val">${moodTxt}${noResp?' · 무응답 '+noResp+'일(회피 신호 가능)':''}</div></div>`;
+
+  h+=`<div class="note">ℹ 이 리포트는 의사 참고용 정보이며, 진단·판단은 의사가 합니다. 음주·물질 항목은 추정·신뢰도 낮음으로 별도 표시됩니다.</div>`;
+  h+=`<div class="modeltag">생성 모델: (데모 — 규칙 기반) · 실제: Solar(Upstage)</div>`;
+  el.innerHTML=h;
+
+  // 원문 drill-down
+  el.querySelectorAll('.ev').forEach(e=>e.onclick=()=>alert('환자 원문 (MSE 증거):\\n\\n'+(ev||'')));
+}
+
+function sleepBars(series){
+  const max=8;
+  return series.map((v,i)=>{
+    if(v==null) return `<div class="bar" style="height:4px;background:#33405a"><i>D${i+1}</i><span style="color:#667">무</span></div>`;
+    const hPct=Math.max(8, (v/max)*100);
+    return `<div class="bar ${v<5?'low':''}" style="height:${hPct}%"><span>${v}h</span><i>D${i+1}</i></div>`;
+  }).join('');
+}
+
+/* ===== 유틸 ===== */
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function resetAll(){
+  logs=[]; dayCounter=0; askedToday=false;
+  document.getElementById('chat').innerHTML='';
+  document.getElementById('report').innerHTML='<div class="empty">환자 기록이 쌓이면<br>아래 버튼으로 진료 전 요약을 생성하세요.</div>';
+  addBubble('sys','— 처음 사용 안내 —');
+  addBubble('ai','안녕하세요! 저는 AI예요(의사·치료사가 아니에요). 편하게 일상 얘기하듯 쓰면, 진료에 도움되도록 정리해 선생님께만 전해드려요. 무엇을 전할지는 직접 고를 수 있어요. 단, 위험한 상황이 감지되면 안전을 위해 선생님께 알림이 갈 수 있어요.');
+}
+function setView(v){
+  document.getElementById('tab-both').classList.toggle('on',v==='both');
+  document.getElementById('tab-patient').classList.toggle('on',v==='patient');
+  document.getElementById('tab-doctor').classList.toggle('on',v==='doctor');
+  const w=document.getElementById('wrap');
+  document.getElementById('patientCard').style.display = v==='doctor'?'none':'flex';
+  document.getElementById('doctorCard').style.display = v==='patient'?'none':'flex';
+  w.style.gridTemplateColumns = (v==='both')?'1fr 1fr':'1fr';
+}
+resetAll();
+</script>
+</body>
+</html>
