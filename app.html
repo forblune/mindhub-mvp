@@ -249,15 +249,35 @@ function addRow(who, html, opts){
 }
 function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
 
-/* 임시 목업 답변. TODO(작업순서 3): /chat 백엔드(Solar)로 교체 — 범용 LLM 실답변.
-   지금은 정해진 답이 아니라 "데모 자리표시자"임을 분명히 함(진단·치료 발화 금지). */
+/* 폴백 답변: BACKEND_URL 비었거나 /chat 실패·타임아웃 시(예: Render cold start). 데모가 안 깨지게.
+   진단·치료 발화 금지, 따뜻한 중립 응답만. */
 function mockReply(){
   const opts = [
-    "얘기해줘서 고마워요. (지금은 데모 모드라 답변이 짧아요 — 곧 실제 대화로 연결돼요.)",
-    "그랬군요. 더 들려줄래요? (데모 응답 — 실제 답변은 다음 단계에서 연결됩니다.)",
-    "들어주고 있어요. 오늘 하루는 어땠어요? (데모 모드)"
+    "얘기해줘서 고마워요. 지금 잠깐 연결이 느릴 수 있는데, 그래도 듣고 있어요. 조금 더 들려줄래요?",
+    "그랬군요. 오늘 하루는 어땠어요?",
+    "들어주고 있어요. 편하게 더 말해줘도 돼요."
   ];
   return opts[logs.length % opts.length];
+}
+
+/* /chat 백엔드(Solar)로 범용 답변. 5초 타임아웃·실패 시 mockReply 폴백(데모 안 깨짐). */
+async function chatReply(){
+  if(!BACKEND_URL) return mockReply();
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 5000);
+  try{
+    // logs의 'ai' → 'assistant'로 변환해 최근 대화를 그대로 전달.
+    const messages = logs.map(m => ({ role: m.role==='ai' ? 'assistant' : 'user', content: m.text }));
+    const r = await fetch(BACKEND_URL + "/chat", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ messages }), signal: ctrl.signal
+    });
+    if(!r.ok) throw new Error("backend");
+    const data = await r.json();
+    const reply = (data && data.reply || "").trim();
+    return reply || mockReply();
+  }catch(e){ return mockReply(); }
+  finally{ clearTimeout(timer); }
 }
 
 async function sendMsg(){
@@ -271,18 +291,16 @@ async function sendMsg(){
   logs.push({ role:'user', text });
 
   // 타이핑 표시
-  const t = addRow('ai', '<span class="typing"><span>●</span><span>●</span><span>●</span></span>', {id:'typing'});
+  addRow('ai', '<span class="typing"><span>●</span><span>●</span><span>●</span></span>', {id:'typing'});
 
   // (작업순서 4에서 연결) 백그라운드 추출은 사용자에게 안 보이게 — 지금은 호출 안 함.
   // const sig = await getSignals(text);
 
-  setTimeout(()=>{
-    const node = document.getElementById('typing');
-    const reply = mockReply();
-    if(node){ node.querySelector('.bubble').innerHTML = escapeHtml(reply); node.removeAttribute('id'); }
-    logs.push({ role:'ai', text:reply });
-    scrollBottom();
-  }, 600);
+  const reply = await chatReply();
+  const node = document.getElementById('typing');
+  if(node){ node.querySelector('.bubble').innerHTML = escapeHtml(reply); node.removeAttribute('id'); }
+  logs.push({ role:'ai', text:reply });
+  scrollBottom();
 }
 
 function onKey(e){
