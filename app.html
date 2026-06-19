@@ -170,6 +170,9 @@
               align-items:center; justify-content:center; gap:8px; font-family:inherit; }
   .kakao-btn:hover{ filter:brightness(.97); }
   .login-foot{ font-size:11.5px; color:var(--muted); margin-top:16px; line-height:1.6; }
+  .consent-title{ font-size:16px; font-weight:700; margin-bottom:12px; }
+  .consent-body{ font-size:13.5px; color:var(--text); line-height:1.75; text-align:left;
+                 background:#f0f7f4; border:1px solid #cfe7dd; border-radius:14px; padding:14px 16px; margin-bottom:20px; }
 
   /* ===== 설정 화면(작업순서 7) — 폼 요소 ===== */
   .set-sectitle{ font-size:12px; color:var(--muted); font-weight:700; letter-spacing:.3px; margin:6px 0 10px; }
@@ -215,6 +218,16 @@
   </div>
 </div>
 
+<!-- 가입 동의 화면 (가입 시 1회. 동의해야 채팅 진입. 이후 평소엔 안 뜸). -->
+<div class="login-view" id="consentView" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">마음기록</div>
+    <div class="consent-title">시작하기 전에</div>
+    <div class="consent-body">안녕하세요! 저는 AI예요(의사·치료사가 아니에요). 편하게 일상 얘기하듯 쓰면, 진료에 도움되도록 정리해 선생님께만 전해드려요. 무엇을 전할지는 직접 고를 수 있어요. 단, 위험한 상황이 감지되면 안전을 위해 선생님께 알림이 갈 수 있어요.</div>
+    <button class="kakao-btn" style="background:var(--accent);color:#fff" onclick="agreeConsent()">동의하고 시작하기</button>
+  </div>
+</div>
+
 <!-- 헤더 -->
 <header class="hdr">
   <div class="side-l">
@@ -230,9 +243,6 @@
 <!-- 메인 채팅 -->
 <div class="main">
   <div class="chat" id="chat">
-    <div class="notice" id="onboarding">
-      <div class="card">안녕하세요! 저는 AI예요(의사·치료사가 아니에요). 편하게 일상 얘기하듯 쓰면, 진료에 도움되도록 정리해 선생님께만 전해드려요. 무엇을 전할지는 직접 고를 수 있어요. 단, 위험한 상황이 감지되면 안전을 위해 선생님께 알림이 갈 수 있어요.</div>
-    </div>
     <div class="chat-inner" id="chatInner"></div>
   </div>
 
@@ -320,7 +330,7 @@
     <div class="help" style="margin-top:8px">켜면 이 계정이 <b>의사</b>로 전환돼 의사 대시보드(doctor.html)로 이동해요. 끄려면 의사 화면 상단의 "환자 모드"를 누르세요. (데모 전용 — 실서비스는 별도 인증 필요)</div>
 
     <div class="set-sectitle" style="margin-top:22px">안내</div>
-    <button class="set-linkbtn" onclick="showOnboardingAgain()">온보딩 고지 다시 보기</button>
+    <button class="set-linkbtn" onclick="showOnboardingAgain()">가입 동의 고지 다시 보기</button>
   </div></div>
   <div class="rv-actions">
     <button class="primary" onclick="saveSettings()">저장</button>
@@ -604,12 +614,10 @@ function saveSettings(){
   try{ localStorage.setItem('mindhub_settings', JSON.stringify(settings)); }catch(e){ /* 저장 불가 환경이면 세션 내에서만 유지 */ }
   closeSettings(); toast('설정을 저장했어요');
 }
-/* 온보딩 고지 다시 보기 — 채팅 상단의 안내 카드를 다시 노출. */
+/* 가입 동의 고지 다시 보기 — 동의 화면을 다시 표시. */
 function showOnboardingAgain(){
   closeSettings();
-  const o = document.getElementById('onboarding'); if(o) o.style.display='';
-  document.getElementById('chat').scrollTop = 0;
-  toast('온보딩 안내를 다시 표시했어요');
+  showConsent();
 }
 
 /* 데모 전용 — 의사 모드: 로그인 사용자의 profiles.role을 doctor로 바꾸고 대시보드로 이동.
@@ -722,7 +730,6 @@ async function sendMsg(){
   const text = inp.value.trim();
   if(!text) return;
   inp.value=''; autoGrow(inp); toggleSend();
-  hideOnboarding();
 
   addRow('me', escapeHtml(text));
   logs.push({ role:'user', text });
@@ -755,7 +762,6 @@ function onKey(e){
 }
 function autoGrow(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
 function toggleSend(){ const i=document.getElementById('msgInput'); document.getElementById('sendBtn').disabled = !i.value.trim(); }
-function hideOnboarding(){ const o=document.getElementById('onboarding'); if(o) o.style.display='none'; }
 
 /* ===== 사이드 / 계정 메뉴 ===== */
 function scrim(on){ document.getElementById('scrim').classList.toggle('on', on); }
@@ -779,7 +785,6 @@ function newChat(){
   persistCurrent();                       // 지금 보던 대화를 기록에 저장
   logs=[]; collected=[]; activeId=null; reportShare={ ...settings.shareDefault };
   document.getElementById('chatInner').innerHTML='';
-  const o=document.getElementById('onboarding'); if(o) o.style.display='';
   renderConvs();
   closeAll(); toast('새 대화를 시작했어요');
 }
@@ -837,7 +842,6 @@ function loadConv(id){
 function rebuildChat(){
   const inner = document.getElementById('chatInner');
   inner.innerHTML = '';
-  const o = document.getElementById('onboarding'); if(o) o.style.display = logs.length ? 'none' : '';
   let lastUserRisky = false;
   logs.forEach(m=>{
     if(m.role==='user'){
@@ -881,16 +885,32 @@ async function logout(){
   else { showLogin(); }
 }
 
-/* 채팅 앱 진입(공통 초기화) */
+/* ===== 가입 동의 (1회) ===== */
+function consentKey(){ return 'mindhub_consent_' + patientId(); }
+function hasConsent(){ try{ return localStorage.getItem(consentKey())==='1'; }catch(e){ return false; } }
+function showConsent(){ hideLogin(); document.getElementById('consentView').style.display='flex'; }
+function hideConsent(){ document.getElementById('consentView').style.display='none'; }
+function agreeConsent(){
+  try{ localStorage.setItem(consentKey(),'1'); }catch(e){}
+  hideConsent();
+  initPatientApp();
+}
+
+/* 채팅 앱 진입 — 동의 안 했으면 동의 화면 먼저, 했으면 바로 채팅. */
+function enterChat(){
+  if(!hasConsent()){ showConsent(); return; }
+  initPatientApp();
+}
+/* 공통 초기화 */
 function initPatientApp(){
-  hideLogin();
+  hideLogin(); hideConsent();
   renderConvs();
   toggleSend();
 }
 /* 비상 우회: 로컬 익명 모드(Solar·Supabase 안 돼도 시연 가능). currentPid=null → 임의 id. */
 function startDemoFallback(){
   currentPid = null;
-  initPatientApp();
+  enterChat();
 }
 
 async function boot(){
@@ -904,7 +924,7 @@ async function boot(){
     currentPid = u.id;          // 환자 식별 = 계정
     const nm = prof?.display_name || u.user_metadata?.name || u.user_metadata?.nickname || '환자';
     setAccount(nm, '카카오 로그인 · 환자');
-    initPatientApp();
+    enterChat();
   }catch(e){
     console.warn('boot 실패 → 데모 폴백', e);
     startDemoFallback();        // 네트워크/세션 실패해도 시연 안 깨짐
