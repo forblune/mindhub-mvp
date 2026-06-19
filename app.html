@@ -170,6 +170,21 @@
               align-items:center; justify-content:center; gap:8px; font-family:inherit; }
   .kakao-btn:hover{ filter:brightness(.97); }
   .login-foot{ font-size:11.5px; color:var(--muted); margin-top:16px; line-height:1.6; }
+  .auth-tabs{ display:flex; gap:6px; margin:6px 0 16px; }
+  .auth-tab{ flex:1; border:none; background:var(--side); color:var(--sub); border-radius:10px; padding:10px;
+             font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .auth-tab.active{ background:var(--accent); color:#fff; }
+  .auth-input{ width:100%; border:1px solid var(--line); border-radius:11px; padding:12px 14px; font-size:15px;
+               font-family:inherit; color:var(--text); background:#fff; outline:none; margin-bottom:9px; }
+  .auth-input:focus{ border-color:var(--accent); }
+  .auth-submit{ width:100%; border:none; border-radius:11px; background:var(--accent); color:#fff;
+                font-size:15px; font-weight:700; padding:13px; cursor:pointer; font-family:inherit; }
+  .auth-submit:hover{ filter:brightness(.97); }
+  .auth-submit:disabled{ background:#c7cdd4; cursor:default; }
+  .auth-msg{ font-size:12.5px; color:var(--danger); min-height:16px; margin-top:8px; line-height:1.5; }
+  .auth-msg.ok{ color:var(--accent); }
+  .auth-divider{ display:flex; align-items:center; gap:10px; margin:18px 0 14px; color:var(--muted); font-size:12px; }
+  .auth-divider::before, .auth-divider::after{ content:""; flex:1; height:1px; background:var(--line); }
   .login-doctor{ display:inline-block; margin-top:26px; font-size:13px; color:var(--accent); font-weight:600;
                  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
   .login-doctor:hover{ opacity:.75; }
@@ -216,8 +231,20 @@
   <div class="login-card">
     <div class="login-logo">마음기록</div>
     <div class="login-sub">평소처럼 편하게 얘기하면,<br>진료에 도움되도록 정리해 드려요.</div>
-    <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 시작하기</button>
-    <div class="login-foot">처음이면 자동으로 가입돼요 · 기록은 안전하게 저장돼요 (데모 — 가상 환자)</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="setAuthMode('login')">로그인</button>
+      <button class="auth-tab" id="tabSignup" onclick="setAuthMode('signup')">회원가입</button>
+    </div>
+    <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email">
+    <input class="auth-input" id="authPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+    <button class="auth-submit" id="authSubmit" onclick="emailAuth()">로그인</button>
+    <div class="auth-msg" id="authMsg"></div>
+
+    <div class="auth-divider"><span>또는</span></div>
+    <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 계속하기</button>
+
+    <div class="login-foot">기록은 안전하게 저장돼요 (데모 — 가상 환자)</div>
     <a class="login-doctor" href="doctor.html">혹시 의사이신가요? ›</a>
   </div>
 </div>
@@ -883,6 +910,45 @@ function kakaoLogin(){
   if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
 }
+
+/* 이메일/비밀번호 로그인·회원가입 */
+let authMode = 'login';
+function setAuthMode(m){
+  authMode = m;
+  document.getElementById('tabLogin').classList.toggle('active', m==='login');
+  document.getElementById('tabSignup').classList.toggle('active', m==='signup');
+  document.getElementById('authSubmit').textContent = m==='login' ? '로그인' : '회원가입';
+  document.getElementById('authPw').autocomplete = m==='login' ? 'current-password' : 'new-password';
+  authMsg('');
+}
+function authMsg(text, ok){
+  const el = document.getElementById('authMsg');
+  el.textContent = text; el.classList.toggle('ok', !!ok);
+}
+async function emailAuth(){
+  if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
+  const email = document.getElementById('authEmail').value.trim();
+  const pw    = document.getElementById('authPw').value;
+  if(!email || !pw){ authMsg('이메일과 비밀번호를 입력해 주세요'); return; }
+  const btn = document.getElementById('authSubmit'); btn.disabled = true; authMsg('처리 중…', true);
+  try{
+    if(authMode === 'login'){
+      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if(error) throw error;
+      // 성공 → onAuthStateChange → boot()가 역할 분기·진입 처리
+    }else{
+      const { data, error } = await sb.auth.signUp({ email, password: pw });
+      if(error) throw error;
+      if(!data.session){   // 이메일 확인이 켜져 있으면 세션이 안 생김
+        authMsg('확인 메일을 보냈어요. 메일 인증 후 로그인해 주세요. (데모는 Supabase에서 "Confirm email" 끄기 권장)', true);
+        return;
+      }
+      // 세션 생기면 onAuthStateChange → boot()
+    }
+  }catch(e){
+    authMsg(authMode==='login' ? '로그인 실패: 이메일/비밀번호를 확인해 주세요' : ('회원가입 실패: ' + (e.message||'다시 시도')));
+  }finally{ btn.disabled = false; }
+}
 async function logout(){
   closeAll();
   if(sb){ await sb.auth.signOut(); }   // onAuthStateChange → boot() → 로그인 화면
@@ -926,8 +992,9 @@ async function boot(){
     const { data:prof } = await sb.from('profiles').select('role,display_name').eq('id', u.id).single();
     if(prof?.role === 'doctor'){ location.href = 'doctor.html'; return; }
     currentPid = u.id;          // 환자 식별 = 계정
-    const nm = prof?.display_name || u.user_metadata?.name || u.user_metadata?.nickname || '환자';
-    setAccount(nm, '카카오 로그인 · 환자');
+    const nm = prof?.display_name || u.user_metadata?.name || u.user_metadata?.nickname
+               || (u.email ? u.email.split('@')[0] : '환자');
+    setAccount(nm, u.email || '환자 계정');
     enterChat();
   }catch(e){
     console.warn('boot 실패 → 데모 폴백', e);
