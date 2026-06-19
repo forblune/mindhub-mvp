@@ -177,6 +177,12 @@
   .auth-input{ width:100%; border:1px solid var(--line); border-radius:11px; padding:12px 14px; font-size:15px;
                font-family:inherit; color:var(--text); background:#fff; outline:none; margin-bottom:9px; }
   .auth-input:focus{ border-color:var(--accent); }
+  .auth-pw-wrap{ position:relative; margin-bottom:9px; }
+  .auth-pw-wrap .auth-input{ margin-bottom:0; padding-right:44px; }
+  .auth-eye{ position:absolute; right:6px; top:0; height:100%; width:38px; border:none; background:none;
+             cursor:pointer; font-size:16px; color:var(--muted); display:flex; align-items:center; justify-content:center; }
+  .auth-hint{ font-size:11.5px; color:var(--muted); text-align:left; margin:-2px 2px 9px; line-height:1.5; }
+  .auth-hint.ok{ color:var(--accent); }
   .auth-submit{ width:100%; border:none; border-radius:11px; background:var(--accent); color:#fff;
                 font-size:15px; font-weight:700; padding:13px; cursor:pointer; font-family:inherit; }
   .auth-submit:hover{ filter:brightness(.97); }
@@ -236,8 +242,16 @@
       <button class="auth-tab active" id="tabLogin" onclick="setAuthMode('login')">로그인</button>
       <button class="auth-tab" id="tabSignup" onclick="setAuthMode('signup')">회원가입</button>
     </div>
-    <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email">
-    <input class="auth-input" id="authPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+    <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email" oninput="authMsg('')">
+    <div class="auth-pw-wrap">
+      <input class="auth-input" id="authPw" type="password" placeholder="비밀번호" autocomplete="current-password" oninput="onPwInput()">
+      <button class="auth-eye" type="button" onclick="togglePw('authPw',this)" aria-label="비밀번호 표시">👁</button>
+    </div>
+    <div class="auth-pw-wrap" id="authPw2Wrap" style="display:none">
+      <input class="auth-input" id="authPw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" oninput="authMsg('')">
+      <button class="auth-eye" type="button" onclick="togglePw('authPw2',this)" aria-label="비밀번호 표시">👁</button>
+    </div>
+    <div class="auth-hint" id="authHint" style="display:none">8자 이상 · 대문자·숫자·특수문자 중 2가지 이상</div>
     <button class="auth-submit" id="authSubmit" onclick="emailAuth()">로그인</button>
     <div class="auth-msg" id="authMsg"></div>
 
@@ -919,17 +933,53 @@ function setAuthMode(m){
   document.getElementById('tabSignup').classList.toggle('active', m==='signup');
   document.getElementById('authSubmit').textContent = m==='login' ? '로그인' : '회원가입';
   document.getElementById('authPw').autocomplete = m==='login' ? 'current-password' : 'new-password';
-  authMsg('');
+  // 회원가입에서만 비밀번호 확인 + 규칙 힌트 표시
+  document.getElementById('authPw2Wrap').style.display = m==='signup' ? '' : 'none';
+  document.getElementById('authHint').style.display    = m==='signup' ? '' : 'none';
+  authMsg(''); onPwInput();
 }
 function authMsg(text, ok){
   const el = document.getElementById('authMsg');
   el.textContent = text; el.classList.toggle('ok', !!ok);
 }
+/* 비밀번호 보기/숨기기 토글 */
+function togglePw(id, btn){
+  const el = document.getElementById(id);
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+/* 검증 헬퍼 */
+function emailValid(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+function pwStrong(pw){
+  if(pw.length < 8) return false;
+  let cats = 0;
+  if(/[A-Z]/.test(pw)) cats++;        // 대문자
+  if(/[0-9]/.test(pw)) cats++;        // 숫자
+  if(/[^A-Za-z0-9]/.test(pw)) cats++; // 특수문자
+  return cats >= 2;
+}
+/* 회원가입 모드에서 비밀번호 규칙 충족 여부를 힌트에 실시간 반영 */
+function onPwInput(){
+  if(authMode !== 'signup') return;
+  const pw = document.getElementById('authPw').value;
+  const hint = document.getElementById('authHint');
+  hint.classList.toggle('ok', pwStrong(pw));
+  hint.textContent = pwStrong(pw)
+    ? '✓ 사용 가능한 비밀번호예요'
+    : '8자 이상 · 대문자·숫자·특수문자 중 2가지 이상';
+}
 async function emailAuth(){
   if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
   const email = document.getElementById('authEmail').value.trim();
   const pw    = document.getElementById('authPw').value;
-  if(!email || !pw){ authMsg('이메일과 비밀번호를 입력해 주세요'); return; }
+  if(!emailValid(email)){ authMsg('올바른 이메일 형식이 아니에요 (예: name@example.com)'); return; }
+  if(!pw){ authMsg('비밀번호를 입력해 주세요'); return; }
+  if(authMode === 'signup'){
+    if(!pwStrong(pw)){ authMsg('비밀번호는 8자 이상이며 대문자·숫자·특수문자 중 2가지 이상이어야 해요'); return; }
+    const pw2 = document.getElementById('authPw2').value;
+    if(pw !== pw2){ authMsg('비밀번호 확인이 일치하지 않아요'); return; }
+  }
   const btn = document.getElementById('authSubmit'); btn.disabled = true; authMsg('처리 중…', true);
   try{
     if(authMode === 'login'){
