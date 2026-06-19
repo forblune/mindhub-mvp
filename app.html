@@ -40,6 +40,19 @@
              color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; margin-top:1px; }
   .notice{ max-width:var(--maxw); margin:2px auto 4px; padding:0 16px; }
   .notice .card{ background:#f0f7f4; border:1px solid #cfe7dd; border-radius:14px; padding:12px 14px; font-size:13px; line-height:1.6; color:#2f5d4e; }
+  /* 위기 자원 인라인 카드(④) — 모달 아님, 채팅 흐름 안에 따뜻하게. AI 말풍선과 같은 들여쓰기. */
+  .crisis-wrap{ display:flex; padding-left:38px; }   /* AI 아바타(28)+gap(10) 만큼 들여써 정렬 */
+  .crisis{ max-width:86%; background:#fff6f4; border:1px solid #f2cbc7; border-radius:16px; padding:13px 15px; }
+  .crisis .c-title{ font-size:14.5px; font-weight:700; color:#b23b35; margin-bottom:3px; }
+  .crisis .c-sub{ font-size:13px; line-height:1.6; color:#7a4a47; margin-bottom:10px; }
+  .crisis .c-line{ display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+                   padding:9px 11px; margin-top:6px; background:#fff; border:1px solid #f0d6d3; border-radius:11px;
+                   font-size:13.5px; color:var(--text); text-decoration:none; }
+  .crisis a.c-line:hover{ background:#fff0ee; }
+  .crisis .c-line b{ font-weight:600; }
+  .crisis .c-line span{ font-size:11.5px; color:var(--muted); flex:none; }
+  .crisis .c-hosp{ color:var(--sub); }
+
   .typing{ font-size:13px; color:var(--muted); }
   .typing span{ animation:blink 1.2s infinite; }
   .typing span:nth-child(2){ animation-delay:.2s; } .typing span:nth-child(3){ animation-delay:.4s; }
@@ -263,9 +276,38 @@ function addRow(who, html, opts){
 }
 function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
 
+/* ===== 위기 자원(작업순서 5) — 규칙 기반, 항상 동작 ===== */
+/* 위험 판정은 RISK_WORDS(규칙 기반)로 동기 처리 — Solar/네트워크와 무관하게 항상 작동. */
+function isRisk(text){ return RISK_WORDS.some(kw => text.includes(kw)); }
+
+/* 담당 병원 연락처는 설정(작업순서 7)에서 등록 → 등록되면 카드에 표시. 지금은 미등록. */
+let hospitalContact = null;
+
+/* 위기 자원 인라인 카드. 모달·화면전환 없이 채팅 흐름 안에 붙임. 대화는 계속 이어짐. */
+function addCrisisCard(){
+  const inner = document.getElementById('chatInner');
+  const wrap = document.createElement('div');
+  wrap.className = 'crisis-wrap';
+  const hosp = hospitalContact
+    ? `<a class="c-line c-hosp" href="tel:${escapeHtml(hospitalContact.replace(/[^0-9+]/g,''))}"><b>담당 병원 ${escapeHtml(hospitalContact)}</b><span>진료 시간 내</span></a>`
+    : `<div class="c-line c-hosp">담당 병원 연락처 <span>설정에서 등록하면 표시돼요</span></div>`;
+  wrap.innerHTML =
+    '<div class="crisis">' +
+      '<div class="c-title">혼자 견디지 않아도 돼요</div>' +
+      '<div class="c-sub">지금 많이 힘들다면, 24시간 곁에 있어 줄 곳이 있어요. 언제든 연락해도 괜찮아요.</div>' +
+      '<a class="c-line" href="tel:109"><b>자살예방 상담전화 109</b><span>24시간 · 무료</span></a>' +
+      '<a class="c-line" href="tel:15770199"><b>정신건강 위기상담 1577-0199</b><span>24시간</span></a>' +
+      hosp +
+    '</div>';
+  inner.appendChild(wrap);
+  scrollBottom();
+}
+
 /* 폴백 답변: BACKEND_URL 비었거나 /chat 실패·타임아웃 시(예: Render cold start). 데모가 안 깨지게.
    진단·치료 발화 금지, 따뜻한 중립 응답만. */
-function mockReply(){
+function mockReply(risky){
+  // 위험 신호 시(폴백이어도): 섣부른 위로로 덮지 않고 고통을 수용하는 따뜻한 문구 + 아래 위기 카드로 연결.
+  if(risky) return "지금 많이 힘들었겠어요. 그 마음, 가볍게 넘기지 않을게요. 혼자 감당하지 않아도 돼요 — 아래에 지금 바로 연락할 수 있는 곳을 같이 둘게요.";
   const opts = [
     "얘기해줘서 고마워요. 지금 잠깐 연결이 느릴 수 있는데, 그래도 듣고 있어요. 조금 더 들려줄래요?",
     "그랬군요. 오늘 하루는 어땠어요?",
@@ -275,8 +317,8 @@ function mockReply(){
 }
 
 /* /chat 백엔드(Solar)로 범용 답변. 5초 타임아웃·실패 시 mockReply 폴백(데모 안 깨짐). */
-async function chatReply(){
-  if(!BACKEND_URL) return mockReply();
+async function chatReply(risky){
+  if(!BACKEND_URL) return mockReply(risky);
   const ctrl = new AbortController();
   const timer = setTimeout(()=>ctrl.abort(), 5000);
   try{
@@ -289,8 +331,8 @@ async function chatReply(){
     if(!r.ok) throw new Error("backend");
     const data = await r.json();
     const reply = (data && data.reply || "").trim();
-    return reply || mockReply();
-  }catch(e){ return mockReply(); }
+    return reply || mockReply(risky);
+  }catch(e){ return mockReply(risky); }
   finally{ clearTimeout(timer); }
 }
 
@@ -304,16 +346,22 @@ async function sendMsg(){
   addRow('me', escapeHtml(text));
   logs.push({ role:'user', text });
 
+  // 위험 판정(작업순서 5) — 규칙 기반·동기. 답변 전에 미리 판정해 Solar/네트워크와 무관하게 보장.
+  const risky = isRisk(text);
+
   // 타이핑 표시
   addRow('ai', '<span class="typing"><span>●</span><span>●</span><span>●</span></span>', {id:'typing'});
 
   // 백그라운드 임상 추출(작업순서 4) — 답변과 병렬로 조용히. await 안 함(지연 0, 비가시).
   collectSignals(text);
 
-  const reply = await chatReply();
+  const reply = await chatReply(risky);
   const node = document.getElementById('typing');
   if(node){ node.querySelector('.bubble').innerHTML = escapeHtml(reply); node.removeAttribute('id'); }
   logs.push({ role:'ai', text:reply });
+
+  // 위기 자원 카드는 AI 답변 뒤에 인라인으로(④). 대화는 그대로 이어짐.
+  if(risky) addCrisisCard();
   scrollBottom();
 }
 
