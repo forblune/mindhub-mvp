@@ -11,14 +11,14 @@
     --text:#1f2328; --sub:#6b7280; --muted:#9aa1ab;
     --me:#1d9e75; --ai:#f2f3f5; --accent:#1d9e75; --danger:#e2504a;
     --shadow:0 8px 30px rgba(0,0,0,.12);
-    --hdr:54px; --maxw:780px;
+    --hdr:54px; --maxw:780px; --drawer-w:300px;
   }
   html,body{ height:100%; }
   body{ font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; background:var(--bg); color:var(--text); overflow:hidden; }
 
   /* ===== 헤더 ===== */
   .hdr{ position:fixed; top:0; left:0; right:0; height:var(--hdr); display:flex; align-items:center; justify-content:space-between;
-        padding:0 10px; background:var(--bg); border-bottom:1px solid var(--line); z-index:30; }
+        padding:0 10px; background:var(--bg); border-bottom:1px solid var(--line); z-index:30; transition:left .22s ease; }
   .hdr .side-l, .hdr .side-r{ display:flex; align-items:center; gap:2px; }
   .iconbtn{ width:38px; height:38px; border:none; background:none; border-radius:9px; cursor:pointer; color:var(--text);
             display:flex; align-items:center; justify-content:center; font-size:19px; }
@@ -28,7 +28,7 @@
            font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
 
   /* ===== 채팅 영역 ===== */
-  .main{ position:absolute; top:var(--hdr); bottom:0; left:0; right:0; display:flex; flex-direction:column; }
+  .main{ position:absolute; top:var(--hdr); bottom:0; left:0; right:0; display:flex; flex-direction:column; transition:left .22s ease; }
   .chat{ flex:1; overflow-y:auto; padding:18px 0 8px; }
   .chat-inner{ max-width:var(--maxw); margin:0 auto; padding:0 16px; display:flex; flex-direction:column; gap:14px; }
   .row{ display:flex; gap:10px; align-items:flex-start; }
@@ -96,7 +96,17 @@
           padding:10px 16px; border-radius:10px; font-size:13px; opacity:0; pointer-events:none; transition:all .2s; z-index:60; max-width:88vw; text-align:center; }
   .toast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
 
-  @media(min-width:900px){ .bubble{ font-size:15px; } }
+  /* 데스크탑(넓은 화면): 사이드바를 고정 노출하고 콘텐츠를 옆으로 민다(GPT 스타일).
+     햄버거는 접기/펼치기 토글. 좁아지면 자동으로 위의 오버레이 드로어로 전환. */
+  @media(min-width:900px){
+    .drawer{ transform:translateX(0); }
+    .hdr{ left:var(--drawer-w); }
+    .main{ left:var(--drawer-w); }
+    .scrim{ display:none; }                       /* 고정 모드에선 딤 불필요 */
+    body.nav-collapsed .drawer{ transform:translateX(-100%); }
+    body.nav-collapsed .hdr{ left:0; }
+    body.nav-collapsed .main{ left:0; }
+  }
 </style>
 </head>
 <body>
@@ -104,7 +114,7 @@
 <!-- 헤더 -->
 <header class="hdr">
   <div class="side-l">
-    <button class="iconbtn" onclick="toggleDrawer(true)" aria-label="메뉴">☰</button>
+    <button class="iconbtn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
   </div>
   <div class="title">마음기록</div>
   <div class="side-r">
@@ -286,7 +296,16 @@ function hideOnboarding(){ const o=document.getElementById('onboarding'); if(o) 
 
 /* ===== 사이드 / 계정 메뉴 ===== */
 function scrim(on){ document.getElementById('scrim').classList.toggle('on', on); }
-function toggleDrawer(on){ document.getElementById('drawer').classList.toggle('on', on); document.getElementById('acct').classList.remove('on'); scrim(on); }
+function toggleDrawer(){
+  document.getElementById('acct').classList.remove('on');
+  if(window.matchMedia('(min-width:900px)').matches){
+    document.body.classList.toggle('nav-collapsed');   // 데스크탑: 접기/펼치기
+  }else{
+    const open = !document.getElementById('drawer').classList.contains('on');
+    document.getElementById('drawer').classList.toggle('on', open);  // 모바일: 오버레이
+    scrim(open);
+  }
+}
 function toggleAcct(){
   const a=document.getElementById('acct'); const willOpen=!a.classList.contains('on');
   a.classList.toggle('on', willOpen); document.getElementById('drawer').classList.remove('on'); scrim(willOpen);
