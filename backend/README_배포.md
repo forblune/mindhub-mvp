@@ -8,12 +8,13 @@
 2. Render → **New → Web Service** → 그 GitHub 저장소 연결.
 3. 설정:
    - **Root Directory:** `backend` (이 폴더가 루트가 아니면)
-   - **Build Command:** `npm install`
+   - **Build Command:** `npm ci`
    - **Start Command:** `npm start`
    - **Instance Type:** Free
 4. **Environment(환경변수) 추가:**
    - `UPSTAGE_API_KEY` = (Upstage 콘솔에서 발급한 키)
    - `SOLAR_MODEL` = (콘솔에서 본 정확한 모델명, 예: `solar-pro2`)
+   - `ALLOWED_ORIGINS` = (기본 목록 외 프론트 주소가 있다면 쉼표로 추가)
 5. 배포되면 주소가 나온다 → 예: `https://21team-solar.onrender.com`
 
 ## 확인
@@ -21,17 +22,19 @@
 - 추출 테스트(터미널):
   ```
   curl -X POST https://<주소>/extract \
+    -H "Origin: https://mindhub.forblune.com" \
     -H "Content-Type: application/json" \
     -d '{"text":"어제 4시간밖에 못 잤어. 약은 먹었어."}'
   ```
   → `{"sleep_h":4,"med_taken":true,"mood":null,"stressor":null}` 비슷하게 나오면 성공.
 
 ## 프론트 연결
-- `index.html` 상단의 `const BACKEND_URL = "";` 에 위 Render 주소를 넣는다.
+- `app.html` 상단의 `const BACKEND_URL = "";` 에 위 Render 주소를 넣는다.
   → 예: `const BACKEND_URL = "https://21team-solar.onrender.com";`
 - 비워두면 **목업 모드**(데모, API 없이 동작). 주소를 넣으면 **Solar 실제 추출**.
 - Solar 호출이 실패해도 자동으로 목업으로 **폴백**되므로 데모는 안 깨진다.
 
 ## ⚠️ 함정
 - **Cold start:** 무료 티어는 안 쓰면 잠들어 첫 요청이 ~30초. 발표 직전 `/` 를 한 번 열어 깨워둘 것.
+- **Origin 제한:** `/chat`·`/extract`는 허용된 프론트 Origin이 반드시 필요하다. 새 도메인은 `ALLOWED_ORIGINS`에도 추가할 것.
 - **위험 감지는 프론트(규칙 기반)에 그대로 둠** — 안전 기능은 API가 죽어도 항상 동작해야 하므로 일부러 분리.
