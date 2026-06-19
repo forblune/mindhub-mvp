@@ -92,6 +92,8 @@
   .conv{ display:block; padding:9px 20px; margin:0 8px; border-radius:9px; font-size:13.5px; color:var(--text);
          cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .conv:hover{ background:#00000008; }
+  .conv.active{ background:#1d9e7514; color:var(--accent); font-weight:600; }
+  .conv-empty{ padding:9px 20px; font-size:12.5px; color:var(--muted); line-height:1.6; }
 
   /* ===== 계정 메뉴(팝오버) ===== */
   .acct{ position:fixed; top:calc(var(--hdr) + 6px); right:10px; width:240px; background:var(--panel); border:1px solid var(--line);
@@ -226,11 +228,6 @@
     <input class="d-search" placeholder="검색" onclick="toast('검색은 다음 단계에서 연결됩니다')" readonly>
   </div>
   <div class="d-item" onclick="newChat()"><span class="ic">＋</span> 새 대화</div>
-  <div class="d-sep"></div>
-  <div class="d-item" onclick="comingSoon('프로젝트')"><span class="ic">📁</span> 프로젝트</div>
-  <div class="d-item" onclick="comingSoon('앱')"><span class="ic">▦</span> 앱</div>
-  <div class="d-item" onclick="comingSoon('라이브러리')"><span class="ic">📚</span> 라이브러리</div>
-  <div class="d-item" onclick="comingSoon('이미지')"><span class="ic">🖼</span> 이미지</div>
   <div class="d-sep"></div>
   <div class="d-label">대화 기록</div>
   <div class="d-list" id="convList"></div>
@@ -545,6 +542,7 @@ async function collectSignals(text){
   try{
     const sig = await getSignals(text);
     collected.push({ at: Date.now(), text, sig });
+    persistCurrent();   // 추출 신호가 채워지면 대화 기록도 갱신(리포트 복원용)
   }catch(e){ /* 추출 실패는 조용히 무시 */ }
 }
 
@@ -647,6 +645,8 @@ async function sendMsg(){
   // 위기 자원 카드는 AI 답변 뒤에 인라인으로(④). 대화는 그대로 이어짐.
   if(risky) addCrisisCard();
   scrollBottom();
+
+  persistCurrent();   // 대화 기록에 저장/갱신(영속)
 }
 
 function onKey(e){
@@ -677,26 +677,87 @@ function toggleAcct(){
 function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); }
 
 function newChat(){
-  logs=[]; collected=[]; reportShare={ ...settings.shareDefault };
+  persistCurrent();                       // 지금 보던 대화를 기록에 저장
+  logs=[]; collected=[]; activeId=null; reportShare={ ...settings.shareDefault };
   document.getElementById('chatInner').innerHTML='';
   const o=document.getElementById('onboarding'); if(o) o.style.display='';
+  renderConvs();
   closeAll(); toast('새 대화를 시작했어요');
 }
 
-/* 대화 기록(겉모양) — 클릭 시 이어가기는 다음 단계 */
-const SAMPLE_CONVS = ["요즘 잠을 잘 못 자요","약 챙겨 먹는 게 자꾸 까먹어요","주말에 가족이랑 있었던 일","오늘은 좀 괜찮았던 하루"];
+/* ===== 대화 기록(영속) — localStorage 보관, 클릭 시 이어가기 ===== */
+let conversations = loadConvs();   // [{id, title, logs, collected, at}] — 최신이 앞
+let activeId = null;               // 현재 열린 대화 id (null = 아직 저장 안 된 새 대화)
+
+function loadConvs(){
+  try{ const v = JSON.parse(localStorage.getItem('mindhub_convs') || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function saveConvs(){
+  try{ localStorage.setItem('mindhub_convs', JSON.stringify(conversations.slice(0,50))); }catch(e){}
+}
+function convTitle(){
+  const firstUser = logs.find(l => l.role==='user');
+  const t = (firstUser ? firstUser.text : '새 대화').replace(/\s+/g,' ').trim();
+  return t.length>22 ? t.slice(0,22)+'…' : (t || '새 대화');
+}
+/* 현재 대화를 conversations에 upsert(최신 맨 앞). 메시지 없으면 저장 안 함. */
+function persistCurrent(){
+  if(!logs.length) return;
+  if(!activeId) activeId = 'c'+Date.now();
+  const rec = { id:activeId, title:convTitle(), logs:[...logs], collected:[...collected], at:Date.now() };
+  conversations = conversations.filter(c => c.id!==activeId);
+  conversations.unshift(rec);
+  saveConvs();
+  renderConvs();
+}
 function renderConvs(){
-  document.getElementById('convList').innerHTML = SAMPLE_CONVS
-    .map(c=>`<div class="conv" onclick="comingSoon('대화 이어가기')">${escapeHtml(c)}</div>`).join('');
+  const el = document.getElementById('convList');
+  if(!conversations.length){
+    el.innerHTML = '<div class="conv-empty">대화를 시작하면<br>여기에 저장돼요.</div>';
+    return;
+  }
+  el.innerHTML = conversations.map(c =>
+    `<div class="conv${c.id===activeId?' active':''}" onclick="loadConv('${c.id}')">${escapeHtml(c.title)}</div>`
+  ).join('');
+}
+/* 저장된 대화를 채팅 화면에 복원하고 이어가기 */
+function loadConv(id){
+  persistCurrent();                       // 지금 보던 대화 먼저 저장
+  const c = conversations.find(x => x.id===id);
+  if(!c){ closeAll(); return; }
+  activeId = id;
+  logs = [...c.logs];
+  collected = [...(c.collected||[])];
+  reportShare = { ...settings.shareDefault };
+  rebuildChat();
+  renderConvs();
+  closeAll();
+}
+/* logs 배열로 채팅 말풍선 다시 그림(위험 메시지엔 위기 카드도 복원). */
+function rebuildChat(){
+  const inner = document.getElementById('chatInner');
+  inner.innerHTML = '';
+  const o = document.getElementById('onboarding'); if(o) o.style.display = logs.length ? 'none' : '';
+  let lastUserRisky = false;
+  logs.forEach(m=>{
+    if(m.role==='user'){
+      addRow('me', escapeHtml(m.text));
+      lastUserRisky = isRisk(m.text);
+    }else{
+      addRow('ai', escapeHtml(m.text));
+      if(lastUserRisky){ addCrisisCard(); lastUserRisky=false; }
+    }
+  });
+  scrollBottom();
 }
 
-/* 토스트 / 자리표시자 */
+/* 토스트 */
 let toastTimer=null;
 function toast(msg){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'), 1900);
 }
-function comingSoon(name){ closeAll(); toast(name + ' — 다음 단계에서 구현됩니다'); }
 
 /* ===== 초기화 ===== */
 renderConvs();
