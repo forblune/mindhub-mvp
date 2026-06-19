@@ -208,7 +208,7 @@ function extractSignals(text){
 }
 
 /* 백엔드 있으면 Solar로 추출, 5초 타임아웃·실패 시 목업 폴백. 위험 감지는 규칙 기반 유지.
-   (이번 단계에선 보관만 — 백그라운드 추출 연결은 작업순서 4번에서.) */
+   (작업순서 4: sendMsg에서 collectSignals로 백그라운드 호출.) */
 async function getSignals(text){
   const mock = extractSignals(text);
   if(!BACKEND_URL) return mock;
@@ -234,6 +234,20 @@ async function getSignals(text){
 
 /* ===== 채팅 UI ===== */
 let logs = [];
+
+/* 세션 누적 임상 신호(작업순서 4). 대화 뒤에서 조용히 모아 리포트(작업순서 6)에서 사용.
+   화면엔 절대 표시하지 않음 — 환자는 그냥 수다 떨 뿐. */
+let collected = [];
+
+/* 백그라운드 임상 추출 — 답변과 별개로, 사용자에겐 안 보이게 신호를 누적.
+   답변 지연을 막기 위해 await 없이 병렬로 호출(fire-and-forget).
+   getSignals 자체가 try/catch로 목업 폴백하므로 throw 없음 — 안전·대화 기능에 영향 0. */
+async function collectSignals(text){
+  try{
+    const sig = await getSignals(text);
+    collected.push({ at: Date.now(), text, sig });
+  }catch(e){ /* 추출 실패는 조용히 무시 */ }
+}
 
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -293,8 +307,8 @@ async function sendMsg(){
   // 타이핑 표시
   addRow('ai', '<span class="typing"><span>●</span><span>●</span><span>●</span></span>', {id:'typing'});
 
-  // (작업순서 4에서 연결) 백그라운드 추출은 사용자에게 안 보이게 — 지금은 호출 안 함.
-  // const sig = await getSignals(text);
+  // 백그라운드 임상 추출(작업순서 4) — 답변과 병렬로 조용히. await 안 함(지연 0, 비가시).
+  collectSignals(text);
 
   const reply = await chatReply();
   const node = document.getElementById('typing');
@@ -331,7 +345,7 @@ function toggleAcct(){
 function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); }
 
 function newChat(){
-  logs=[]; document.getElementById('chatInner').innerHTML='';
+  logs=[]; collected=[]; document.getElementById('chatInner').innerHTML='';
   const o=document.getElementById('onboarding'); if(o) o.style.display='';
   closeAll(); toast('새 대화를 시작했어요');
 }
