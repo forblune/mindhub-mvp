@@ -109,6 +109,53 @@
           padding:10px 16px; border-radius:10px; font-size:13px; opacity:0; pointer-events:none; transition:all .2s; z-index:60; max-width:88vw; text-align:center; }
   .toast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
 
+  /* ===== 리포트 화면(⑤, 작업순서 6) — 풀스크린 오버레이 ===== */
+  .report-view{ position:fixed; inset:0; background:var(--bg); z-index:70; display:flex; flex-direction:column;
+                transform:translateY(100%); transition:transform .26s ease; }
+  .report-view.on{ transform:translateY(0); }
+  .rv-bar{ height:var(--hdr); flex:none; display:flex; align-items:center; justify-content:space-between;
+           padding:0 8px; border-bottom:1px solid var(--line); }
+  .rv-bar .rv-title{ font-size:15px; font-weight:600; }
+  .rv-bar .txtbtn{ border:none; background:none; font-size:14px; color:var(--accent); cursor:pointer; padding:8px 10px; border-radius:8px; }
+  .rv-bar .txtbtn:hover{ background:#0000000a; }
+  .rv-scroll{ flex:1; overflow-y:auto; }
+  .rv-inner{ max-width:var(--maxw); margin:0 auto; padding:16px 16px 24px; }
+  .rv-sub{ font-size:12.5px; color:var(--sub); margin:2px 0 14px; line-height:1.6; }
+  .triage{ background:#fff4f3; border:1px solid #f1c4c0; border-radius:14px; padding:13px 15px; margin-bottom:14px; }
+  .triage .h{ font-size:14.5px; font-weight:700; color:#b23b35; }
+  .triage .b{ font-size:13px; color:#7a4a47; margin-top:4px; line-height:1.6; }
+  .triage .ev{ font-size:12px; color:#8a5e5b; margin-top:8px; padding-top:8px; border-top:1px dashed #efcecb; line-height:1.6; }
+  .sec{ border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px; transition:opacity .15s; }
+  .sec .top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .sec .lbl{ font-size:13px; font-weight:600; color:var(--sub); }
+  .sec .val{ font-size:15px; margin-top:6px; line-height:1.6; }
+  .sec .val .bad{ color:var(--danger); font-weight:600; }
+  .share-btn{ flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; padding:5px 11px;
+              font-size:12px; color:var(--accent); cursor:pointer; }
+  .share-btn.off{ color:var(--muted); }
+  .lock{ flex:none; font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+  .sec.excluded{ opacity:.45; }
+  .rbars{ display:flex; align-items:flex-end; gap:5px; height:54px; margin-top:10px; }
+  .rbar{ flex:1; min-width:8px; background:#dfe3e8; border-radius:4px 4px 0 0; position:relative; }
+  .rbar.low{ background:#f0b3af; }
+  .rbar i{ position:absolute; bottom:-15px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted); font-style:normal; }
+  .rv-note{ font-size:12px; color:var(--sub); line-height:1.7; margin-top:14px; padding:12px 14px; background:var(--side); border-radius:12px; }
+  .rv-empty{ text-align:center; color:var(--muted); font-size:14px; padding:60px 20px; line-height:1.8; }
+  .rv-actions{ flex:none; display:flex; gap:8px; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); }
+  .rv-actions button{ flex:1; border:none; border-radius:12px; padding:13px; font-size:14.5px; font-weight:600; cursor:pointer; }
+  .rv-actions .primary{ background:var(--accent); color:#fff; }
+  .rv-actions .ghost{ background:var(--side); color:var(--text); border:1px solid var(--line); }
+  /* 의사에게 보여주기(전체화면): 환자 통제 UI·비공개 항목 숨김. */
+  .report-view.doctor .share-btn,
+  .report-view.doctor .rv-actions{ display:none; }
+  .report-view.doctor .sec.excluded{ display:none; }
+  @media print{
+    .hdr,.main,.drawer,.scrim,.acct,.toast,.rv-bar,.rv-actions{ display:none !important; }
+    .report-view{ position:static; transform:none; }
+    .report-view .sec.excluded{ display:none; }   /* 비공개 항목은 PDF에도 빠짐 */
+    .share-btn{ display:none; }
+  }
+
   /* 데스크탑(넓은 화면): 사이드바를 고정 노출하고 콘텐츠를 옆으로 민다(GPT 스타일).
      햄버거는 접기/펼치기 토글. 좁아지면 자동으로 위의 오버레이 드로어로 전환. */
   @media(min-width:900px){
@@ -178,9 +225,23 @@
     <span class="avatar" style="cursor:default">나</span>
     <div><div class="nm">홍길동 (데모)</div><div class="em">가상 환자 계정</div></div>
   </div>
-  <div class="a-item" onclick="comingSoon('리포트 기록 보기')"><span class="ic">🗂</span> 리포트 기록 보기</div>
-  <div class="a-item" onclick="comingSoon('내보내기')"><span class="ic">⬇</span> 내보내기</div>
+  <div class="a-item" onclick="openReport()"><span class="ic">🗂</span> 리포트 기록 보기</div>
+  <div class="a-item" onclick="openReport()"><span class="ic">⬇</span> 내보내기</div>
   <div class="a-item" onclick="comingSoon('설정')"><span class="ic">⚙</span> 설정</div>
+</div>
+
+<!-- 리포트 화면(⑤) -->
+<div class="report-view" id="reportView">
+  <div class="rv-bar">
+    <button class="txtbtn" id="rvBack" onclick="rvBack()">‹ 닫기</button>
+    <div class="rv-title" id="rvTitle">진료 전 요약 리포트</div>
+    <span style="width:54px"></span>
+  </div>
+  <div class="rv-scroll"><div class="rv-inner" id="reportBody"></div></div>
+  <div class="rv-actions">
+    <button class="ghost" onclick="enterDoctorView()">의사에게 보여주기</button>
+    <button class="primary" onclick="exportPDF()">PDF 내보내기</button>
+  </div>
 </div>
 
 <!-- 공용 오버레이 / 토스트 -->
@@ -244,6 +305,123 @@ async function getSignals(text){
   }catch(e){ return mock; }
   finally{ clearTimeout(timer); }
 }
+
+/* ===== 리포트(⑤, 작업순서 6) — collected를 5영역으로 집계 ===== */
+/* 환자 항목별 공유/비공개 상태. 안전(safety)은 잠금 — 항상 포함(온보딩에서 고지). */
+let reportShare = { sleep:true, med:true, stressor:true, mood:true };
+
+function aggregate(){
+  const sleepSeries = collected.map(c => c.sig.sleep_h);
+  const sleepValid  = sleepSeries.filter(v => v!=null);
+  const moodVals    = collected.map(c => c.sig.mood).filter(v => v!=null);
+  const medDays     = collected.filter(c => c.sig.med_taken===true).length;
+  const medTotal    = collected.filter(c => c.sig.med_taken!=null).length;
+  const stressors   = [...new Set(collected.map(c => c.sig.stressor).filter(Boolean))];
+  const redItem     = collected.find(c => c.sig.red_flag);
+  return {
+    n: collected.length,
+    sleepSeries, sleepValid,
+    sleepAvg: sleepValid.length ? (sleepValid.reduce((a,b)=>a+b,0)/sleepValid.length).toFixed(1) : null,
+    moodAvg:  moodVals.length ? (moodVals.reduce((a,b)=>a+b,0)/moodVals.length).toFixed(1) : null,
+    medDays, medTotal, stressors,
+    red: !!redItem, evidence: redItem ? redItem.sig.evidence : null
+  };
+}
+
+function sleepBars(series){
+  const max = 8;
+  return series.map((v,i)=>{
+    if(v==null) return `<div class="rbar" style="height:5px"><i>${i+1}</i></div>`;
+    const hPct = Math.max(12, (v/max)*100);
+    return `<div class="rbar ${v<5?'low':''}" style="height:${hPct}%"><i>${i+1}</i></div>`;
+  }).join('');
+}
+
+/* 비공개 토글 가능한 일반 영역 */
+function secRow(key, label, valHtml){
+  const off = !reportShare[key];
+  return `<div class="sec${off?' excluded':''}" data-key="${key}">
+    <div class="top"><div class="lbl">${label}</div>
+      <button class="share-btn${off?' off':''}" onclick="toggleShare('${key}')">${off?'비공개':'공유 중'}</button></div>
+    <div class="val">${valHtml}</div></div>`;
+}
+
+function renderReport(){
+  const body = document.getElementById('reportBody');
+  const a = aggregate();
+  if(a.n===0){
+    body.innerHTML = `<div class="rv-empty">아직 정리할 대화가 없어요.<br>채팅에서 일상 얘기를 나누면<br>여기에 자동으로 정리돼요.</div>`;
+    return;
+  }
+  let h = `<div class="rv-sub">최근 대화 ${a.n}건에서 조용히 정리한 요약이에요. 선생님께 보여드리기 전, 항목별로 비공개를 고를 수 있어요. (안전 항목은 보호를 위해 항상 포함돼요.)</div>`;
+
+  // 안전 Red Flag — 잠금(항상 포함). 맨 위 트리아지.
+  if(a.red){
+    h += `<div class="triage">
+      <div class="h">⚠ 안전 — 우선 살펴봐 주세요</div>
+      <div class="b">대화 중 자살/자해 관련 표현이 감지됐어요. 진료 시작 전 안전부터 확인해 주세요.</div>
+      <div class="ev">근거 원문: "${escapeHtml(a.evidence||'')}"</div></div>`;
+  }
+
+  // ① 수면·기능
+  const sleepVal = a.sleepAvg!=null
+    ? (a.sleepAvg<5 ? `<span class="bad">평균 수면 ${a.sleepAvg}h (부족)</span>` : `평균 수면 ${a.sleepAvg}h`)
+      + `<div class="rbars">${sleepBars(a.sleepSeries)}</div>`
+    : '수면 기록 없음';
+  h += secRow('sleep', '① 수면·기능', sleepVal);
+
+  // ② 약물 순응도
+  h += secRow('med', '② 약물 순응도', a.medTotal ? `복약 ${a.medDays}/${a.medTotal}일` : '복약 기록 없음');
+
+  // ③ 안전·자살 리스크 — 잠금(빼기 불가)
+  h += `<div class="sec" data-key="safety">
+    <div class="top"><div class="lbl">③ 안전·자살 리스크</div>
+      <span class="lock">🔒 항상 포함</span></div>
+    <div class="val">${a.red ? '<span class="bad">위험 신호 감지</span> · 계획/준비 여부는 진료 시 확인' : '특이 위험 신호 없음'}</div></div>`;
+
+  // ④ 스트레스원·환경
+  h += secRow('stressor', '④ 스트레스원·환경', a.stressors.length ? escapeHtml(a.stressors.join(', ')) : '특이 사항 없음');
+
+  // ⑤ 정신상태·기타
+  h += secRow('mood', '⑤ 정신상태·기타', a.moodAvg!=null ? `기분 평균 ${a.moodAvg}/10` : '기분 데이터 부족');
+
+  h += `<div class="rv-note">ℹ 이 리포트는 <b>진단이 아니라</b> 일상 대화에서 정리한 <b>기록 요약</b>이에요. 의학적 판단은 선생님이 합니다. (데모 — 가상 데이터)</div>`;
+  body.innerHTML = h;
+}
+
+function toggleShare(key){
+  reportShare[key] = !reportShare[key];
+  const sec = document.querySelector('.sec[data-key="'+key+'"]');
+  if(!sec) return;
+  sec.classList.toggle('excluded', !reportShare[key]);
+  const b = sec.querySelector('.share-btn');
+  if(b){ b.textContent = reportShare[key] ? '공유 중' : '비공개'; b.classList.toggle('off', !reportShare[key]); }
+}
+
+function openReport(){
+  closeAll();
+  renderReport();
+  document.getElementById('reportView').classList.add('on');
+}
+function rvBack(){
+  const v = document.getElementById('reportView');
+  if(v.classList.contains('doctor')){ exitDoctorView(); return; }
+  v.classList.remove('on');
+}
+function enterDoctorView(){
+  const v = document.getElementById('reportView');
+  v.classList.add('doctor');
+  document.getElementById('rvTitle').textContent = '의사에게 보여주기';
+  document.getElementById('rvBack').textContent = '‹ 환자 화면';
+}
+function exitDoctorView(){
+  const v = document.getElementById('reportView');
+  v.classList.remove('doctor');
+  document.getElementById('rvTitle').textContent = '진료 전 요약 리포트';
+  document.getElementById('rvBack').textContent = '‹ 닫기';
+}
+/* PDF 내보내기 — 브라우저 인쇄(→ PDF로 저장). 비공개 항목은 @media print에서 빠짐. */
+function exportPDF(){ window.print(); }
 
 /* ===== 채팅 UI ===== */
 let logs = [];
@@ -393,7 +571,8 @@ function toggleAcct(){
 function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); }
 
 function newChat(){
-  logs=[]; collected=[]; document.getElementById('chatInner').innerHTML='';
+  logs=[]; collected=[]; reportShare={ sleep:true, med:true, stressor:true, mood:true };
+  document.getElementById('chatInner').innerHTML='';
   const o=document.getElementById('onboarding'); if(o) o.style.display='';
   closeAll(); toast('새 대화를 시작했어요');
 }
