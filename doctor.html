@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="favicon.png">
+<title>마음기록 — 의사 대시보드</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --bg:#ffffff; --side:#f7f7f8; --line:#e6e7eb; --text:#1f2328; --sub:#6b7280; --muted:#9aa1ab;
+    --accent:#1d9e75; --danger:#e2504a; --hdr:54px;
+  }
+  html,body{ height:100%; }
+  body{ font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; background:var(--bg); color:var(--text); }
+
+  /* 로그인 / 권한없음 게이트 */
+  .gate{ position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
+  .gate-card{ width:100%; max-width:360px; text-align:center; }
+  .gate-logo{ font-size:24px; font-weight:700; letter-spacing:-.5px; color:var(--accent); margin-bottom:8px; }
+  .gate-sub{ font-size:14px; color:var(--sub); line-height:1.65; margin-bottom:26px; }
+  .kakao-btn{ width:100%; border:none; border-radius:12px; background:#FEE500; color:#191600;
+              font-size:15.5px; font-weight:700; padding:14px; cursor:pointer; font-family:inherit; }
+  .kakao-btn:hover{ filter:brightness(.97); }
+  .gate-link{ display:inline-block; margin-top:18px; font-size:13px; color:var(--accent); text-decoration:none; }
+  .gate-foot{ font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.6; }
+
+  /* 헤더 */
+  .dhdr{ position:fixed; top:0; left:0; right:0; height:var(--hdr); display:flex; align-items:center;
+         justify-content:space-between; padding:0 14px; border-bottom:1px solid var(--line); background:var(--bg); z-index:30; }
+  .dhdr .t{ font-size:15.5px; font-weight:600; }
+  .dhdr .who{ font-size:12px; color:var(--muted); }
+  .txtbtn{ border:none; background:none; font-size:14px; color:var(--accent); cursor:pointer; padding:8px 10px; border-radius:8px; }
+  .txtbtn:hover{ background:#0000000a; }
+
+  /* 본문 레이아웃 */
+  .dwrap{ position:absolute; top:var(--hdr); bottom:0; left:0; right:0; display:flex; }
+  .plist{ width:264px; flex:none; border-right:1px solid var(--line); overflow-y:auto; padding:10px 8px; background:var(--side); }
+  .plist .ptitle{ font-size:11.5px; color:var(--muted); font-weight:700; letter-spacing:.3px; padding:6px 10px 8px; }
+  .pitem{ display:flex; align-items:center; gap:10px; padding:11px 12px; margin:2px 0; border-radius:10px; cursor:pointer; font-size:14px; }
+  .pitem:hover{ background:#00000008; }
+  .pitem.active{ background:#1d9e7514; color:var(--accent); font-weight:600; }
+  .pitem .pav{ width:30px; height:30px; flex:none; border-radius:50%; background:linear-gradient(135deg,#1d9e75,#3a82f7);
+               color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; }
+  .pitem .red{ margin-left:auto; color:var(--danger); font-size:13px; }
+  .pempty{ padding:14px 12px; font-size:12.5px; color:var(--muted); line-height:1.6; }
+
+  .dmain{ flex:1; overflow-y:auto; }
+  .dinner{ max-width:760px; margin:0 auto; padding:18px 18px 28px; }
+  .dempty{ text-align:center; color:var(--muted); font-size:14px; padding:70px 20px; line-height:1.8; }
+  .rhead{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .rhead .nm{ font-size:18px; font-weight:700; }
+  .rhead .cnt{ font-size:12px; color:var(--muted); }
+  .rsub{ font-size:12.5px; color:var(--sub); margin:2px 0 14px; line-height:1.6; }
+
+  .triage{ background:#fff4f3; border:1px solid #f1c4c0; border-radius:14px; padding:13px 15px; margin-bottom:14px; }
+  .triage .h{ font-size:14.5px; font-weight:700; color:#b23b35; }
+  .triage .b{ font-size:13px; color:#7a4a47; margin-top:4px; line-height:1.6; }
+  .triage .ev{ font-size:12px; color:#8a5e5b; margin-top:8px; padding-top:8px; border-top:1px dashed #efcecb; line-height:1.6; }
+  .sec{ border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px; }
+  .sec .lbl{ font-size:13px; font-weight:600; color:var(--sub); }
+  .sec .val{ font-size:15px; margin-top:6px; line-height:1.6; }
+  .sec .val .bad{ color:var(--danger); font-weight:600; }
+  .rbars{ display:flex; align-items:flex-end; gap:5px; height:54px; margin-top:10px; }
+  .rbar{ flex:1; min-width:8px; background:#dfe3e8; border-radius:4px 4px 0 0; position:relative; }
+  .rbar.low{ background:#f0b3af; }
+  .rbar i{ position:absolute; bottom:-15px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted); font-style:normal; }
+  .rnote{ font-size:12px; color:var(--sub); line-height:1.7; margin-top:14px; padding:12px 14px; background:var(--side); border-radius:12px; }
+
+  @media(max-width:800px){
+    .dwrap{ flex-direction:column; }
+    .plist{ width:100%; height:auto; max-height:160px; border-right:none; border-bottom:1px solid var(--line); }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- 로그인 게이트 -->
+<div class="gate" id="loginView" style="display:none">
+  <div class="gate-card">
+    <div class="gate-logo">마음기록 · 의사용</div>
+    <div class="gate-sub">담당 환자의 진료 전 요약 리포트를<br>한눈에 확인하세요.</div>
+    <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 로그인</button>
+    <div class="gate-foot">의사 계정으로 로그인해야 접근할 수 있어요. (데모 — 가상 환자)</div>
+  </div>
+</div>
+
+<!-- 권한 없음 게이트 -->
+<div class="gate" id="denyView" style="display:none">
+  <div class="gate-card">
+    <div class="gate-logo">접근 권한 없음</div>
+    <div class="gate-sub">이 페이지는 <b>의사 계정</b>만 볼 수 있어요.<br>환자라면 채팅 앱을 이용해 주세요.</div>
+    <a class="gate-link" href="app.html">→ 환자 채팅 앱으로 가기</a>
+    <div><a class="gate-link" href="#" onclick="logout();return false;">다른 계정으로 로그인</a></div>
+  </div>
+</div>
+
+<!-- 대시보드 -->
+<header class="dhdr" id="dhdr" style="display:none">
+  <div><span class="t">의사 대시보드</span> <span class="who" id="who"></span></div>
+  <button class="txtbtn" onclick="logout()">로그아웃</button>
+</header>
+<div class="dwrap" id="dwrap" style="display:none">
+  <aside class="plist">
+    <div class="ptitle">환자 목록</div>
+    <div id="plist"><div class="pempty">불러오는 중…</div></div>
+  </aside>
+  <main class="dmain">
+    <div class="dinner" id="dinner">
+      <div class="dempty">왼쪽에서 환자를 선택하면<br>진료 전 요약 리포트가 표시돼요.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ===== Supabase (app.html과 동일 프로젝트) ===== */
+const SUPABASE_URL  = "https://vhxvqtbemahbcbrbnkcv.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoeHZxdGJlbWFoYmNicmJua2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODEwNDMsImV4cCI6MjA5NjU1NzA0M30.kKowienH_myTszuJuG3HSuIDl9TUM6EBT4ZUV6jqRM0";
+const sb = (SUPABASE_URL && SUPABASE_ANON && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ===== 클라우드 읽기(의사 RLS로 모든 환자 조회 가능) ===== */
+async function loadCloudEntries(pid){
+  if(!sb) return null;
+  try{
+    const { data, error } = await sb.from('entries')
+      .select('*').eq('patient_id', pid).order('created_at',{ascending:true});
+    if(error) throw error;
+    return data.map(r => ({ at:r.created_at, text:r.text, sig:{
+      sleep_h:r.sleep_h, med_taken:r.med_taken, mood:r.mood,
+      stressor:r.stressor, red_flag:r.red_flag, evidence:r.evidence }}));
+  }catch(e){ console.warn('entries select failed', e); return null; }
+}
+
+/* ===== 집계 (app.html aggregate 재사용) ===== */
+function aggregate(src){
+  src = src || [];
+  const sleepSeries = src.map(c => c.sig.sleep_h);
+  const sleepValid  = sleepSeries.filter(v => v!=null);
+  const moodVals    = src.map(c => c.sig.mood).filter(v => v!=null);
+  const medDays     = src.filter(c => c.sig.med_taken===true).length;
+  const medTotal    = src.filter(c => c.sig.med_taken!=null).length;
+  const stressors   = [...new Set(src.map(c => c.sig.stressor).filter(Boolean))];
+  const redItem     = src.find(c => c.sig.red_flag);
+  return {
+    n: src.length, sleepSeries, sleepValid,
+    sleepAvg: sleepValid.length ? (sleepValid.reduce((a,b)=>a+b,0)/sleepValid.length).toFixed(1) : null,
+    moodAvg:  moodVals.length ? (moodVals.reduce((a,b)=>a+b,0)/moodVals.length).toFixed(1) : null,
+    medDays, medTotal, stressors,
+    red: !!redItem, evidence: redItem ? redItem.sig.evidence : null
+  };
+}
+function sleepBars(series){
+  const max = 8;
+  return series.map((v,i)=>{
+    if(v==null) return `<div class="rbar" style="height:5px"><i>${i+1}</i></div>`;
+    const hPct = Math.max(12, (v/max)*100);
+    return `<div class="rbar ${v<5?'low':''}" style="height:${hPct}%"><i>${i+1}</i></div>`;
+  }).join('');
+}
+
+/* ===== 환자 목록 ===== */
+let patients = [];
+function pLabel(p){ return p.display_name || ('환자 ' + (p.id||'').slice(0,6)); }
+
+async function loadPatients(){
+  const el = document.getElementById('plist');
+  if(!sb){ el.innerHTML = '<div class="pempty">연결 설정이 없어요.</div>'; return; }
+  try{
+    const { data, error } = await sb.from('profiles').select('id,display_name').eq('role','patient');
+    if(error) throw error;
+    patients = data || [];
+    if(!patients.length){ el.innerHTML = '<div class="pempty">아직 등록된 환자가 없어요.<br>환자가 카카오로 로그인하면 표시돼요.</div>'; return; }
+    el.innerHTML = patients.map(p =>
+      `<div class="pitem" data-pid="${escapeHtml(p.id)}" onclick="selectPatient('${escapeHtml(p.id)}')">
+         <span class="pav">${escapeHtml(pLabel(p).slice(0,2))}</span>
+         <span>${escapeHtml(pLabel(p))}</span></div>`).join('');
+  }catch(e){ console.warn('profiles select failed', e); el.innerHTML = '<div class="pempty">환자 목록을 불러오지 못했어요.</div>'; }
+}
+
+async function selectPatient(pid){
+  document.querySelectorAll('.pitem').forEach(n => n.classList.toggle('active', n.dataset.pid===pid));
+  const dinner = document.getElementById('dinner');
+  dinner.innerHTML = '<div class="dempty">불러오는 중…</div>';
+  const entries = await loadCloudEntries(pid) || [];
+  const p = patients.find(x => x.id===pid);
+  renderDoctorReport(entries, p ? pLabel(p) : pid);
+}
+
+/* ===== 리포트(읽기 전용 — 비공개 토글 없음, 예외 Red Flag만 부각) ===== */
+function renderDoctorReport(entries, label){
+  const dinner = document.getElementById('dinner');
+  const a = aggregate(entries);
+  if(a.n===0){
+    dinner.innerHTML = `<div class="dempty">이 환자는 아직 정리된 대화가 없어요.</div>`;
+    return;
+  }
+  let h = `<div class="rhead"><span class="nm">${escapeHtml(label)}</span><span class="cnt">대화 ${a.n}건</span></div>
+           <div class="rsub">일상 대화에서 자동 정리된 요약입니다. 읽기 전용 · 예외(Red Flag)만 부각됩니다.</div>`;
+
+  if(a.red){
+    h += `<div class="triage">
+      <div class="h">⚠ 안전 — 우선 평가 필요</div>
+      <div class="b">대화 중 자살/자해 관련 표현이 감지됐습니다. 진료 시작 전 안전부터 평가하세요.</div>
+      <div class="ev">근거 원문: "${escapeHtml(a.evidence||'')}"</div></div>`;
+  }
+  const sleepVal = a.sleepAvg!=null
+    ? (a.sleepAvg<5 ? `<span class="bad">평균 수면 ${a.sleepAvg}h (부족)</span>` : `평균 수면 ${a.sleepAvg}h`)
+      + `<div class="rbars">${sleepBars(a.sleepSeries)}</div>`
+    : '수면 기록 없음';
+  h += `<div class="sec"><div class="lbl">① 수면·기능</div><div class="val">${sleepVal}</div></div>`;
+  h += `<div class="sec"><div class="lbl">② 약물 순응도</div><div class="val">${a.medTotal ? `복약 ${a.medDays}/${a.medTotal}일` : '복약 기록 없음'}</div></div>`;
+  h += `<div class="sec"><div class="lbl">③ 안전·자살 리스크</div><div class="val">${a.red ? '<span class="bad">위험 신호 감지</span> · 계획/준비 여부는 진료 시 확인' : '특이 위험 신호 없음'}</div></div>`;
+  h += `<div class="sec"><div class="lbl">④ 스트레스원·환경</div><div class="val">${a.stressors.length ? escapeHtml(a.stressors.join(', ')) : '특이 사항 없음'}</div></div>`;
+  h += `<div class="sec"><div class="lbl">⑤ 정신상태·기타</div><div class="val">${a.moodAvg!=null ? `기분 평균 ${a.moodAvg}/10` : '기분 데이터 부족'}</div></div>`;
+  h += `<div class="rnote">ℹ 이 리포트는 <b>진단이 아니라</b> 환자의 일상 대화에서 정리한 <b>기록 요약</b>입니다. 의학적 판단은 의사가 합니다. (데모 — 가상 데이터)</div>`;
+  dinner.innerHTML = h;
+}
+
+/* ===== 게이트 (로그인 + 의사 권한) ===== */
+function show(id){ document.getElementById(id).style.display = (id==='dwrap'||id==='dhdr') ? '' : 'flex'; }
+function hideAll(){ ['loginView','denyView','dhdr','dwrap'].forEach(i => document.getElementById(i).style.display='none'); }
+
+function kakaoLogin(){
+  if(!sb){ alert('로그인 설정이 없습니다.'); return; }
+  sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
+}
+async function logout(){ if(sb) await sb.auth.signOut(); else { hideAll(); show('loginView'); } }
+
+async function boot(){
+  hideAll();
+  if(!sb){ show('loginView'); return; }
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session){ show('loginView'); return; }
+    const u = session.user;
+    const { data:prof } = await sb.from('profiles').select('role,display_name').eq('id', u.id).single();
+    if(prof?.role !== 'doctor'){ show('denyView'); return; }
+    document.getElementById('who').textContent = prof.display_name ? `· ${prof.display_name} 선생님` : '';
+    show('dhdr'); show('dwrap');
+    loadPatients();
+  }catch(e){ console.warn('boot 실패', e); show('loginView'); }
+}
+sb && sb.auth.onAuthStateChange(()=> boot());
+boot();
+</script>
+</body>
+</html>

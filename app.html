@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="favicon.png">
 <title>마음기록 — 무엇이든 이야기해 보세요</title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
@@ -158,6 +159,18 @@
     .share-btn{ display:none; }
   }
 
+  /* ===== 로그인 게이트(카카오) ===== */
+  .login-view{ position:fixed; inset:0; z-index:100; background:var(--bg); display:flex;
+               align-items:center; justify-content:center; padding:24px; }
+  .login-card{ width:100%; max-width:340px; text-align:center; }
+  .login-logo{ font-size:26px; font-weight:700; letter-spacing:-.5px; color:var(--accent); margin-bottom:10px; }
+  .login-sub{ font-size:14px; color:var(--sub); line-height:1.65; margin-bottom:28px; }
+  .kakao-btn{ width:100%; border:none; border-radius:12px; background:#FEE500; color:#191600;
+              font-size:15.5px; font-weight:700; padding:14px; cursor:pointer; display:flex;
+              align-items:center; justify-content:center; gap:8px; font-family:inherit; }
+  .kakao-btn:hover{ filter:brightness(.97); }
+  .login-foot{ font-size:11.5px; color:var(--muted); margin-top:16px; line-height:1.6; }
+
   /* ===== 설정 화면(작업순서 7) — 폼 요소 ===== */
   .set-sectitle{ font-size:12px; color:var(--muted); font-weight:700; letter-spacing:.3px; margin:6px 0 10px; }
   .set-row{ margin-bottom:14px; }
@@ -191,6 +204,16 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
+<!-- 로그인 게이트 (세션 없으면 이 화면만, 채팅은 숨김). ?demo=1 이면 건너뜀. -->
+<div class="login-view" id="loginView">
+  <div class="login-card">
+    <div class="login-logo">마음기록</div>
+    <div class="login-sub">평소처럼 편하게 얘기하면,<br>진료에 도움되도록 정리해 드려요.</div>
+    <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 시작하기</button>
+    <div class="login-foot">로그인하면 기록이 안전하게 저장돼요. (데모 — 가상 환자)</div>
+  </div>
+</div>
 
 <!-- 헤더 -->
 <header class="hdr">
@@ -244,6 +267,7 @@
   <div class="a-item" onclick="openReport()"><span class="ic">🗂</span> 리포트 기록 보기</div>
   <div class="a-item" onclick="openReport()"><span class="ic">⬇</span> 내보내기</div>
   <div class="a-item" onclick="openSettings()"><span class="ic">⚙</span> 설정</div>
+  <div class="a-item" onclick="logout()"><span class="ic">⎋</span> 로그아웃</div>
 </div>
 
 <!-- 리포트 화면(⑤) -->
@@ -324,8 +348,10 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sb = (SUPABASE_URL && SUPABASE_ANON && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 
-/* (가상) 환자 식별자 — 의사 뷰가 같은 id로 읽어옴. localStorage에 보관. */
+/* 환자 식별자 — 로그인 시 user.id(계정) 사용. 미로그인 데모 모드에선 localStorage 임의 id 폴백. */
+let currentPid = null;   // 로그인 사용자 id (boot에서 설정). null이면 익명 데모.
 function patientId(){
+  if(currentPid) return currentPid;
   let id = localStorage.getItem('mindhub_pid');
   if(!id){ id = 'demo-' + Math.random().toString(36).slice(2,8); localStorage.setItem('mindhub_pid', id); }
   return id;
@@ -813,9 +839,51 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'), 1900);
 }
 
-/* ===== 초기화 ===== */
-renderConvs();
-toggleSend();
+/* ===== 로그인 게이트 + 역할 분기 (카카오) ===== */
+const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
+
+function showLogin(){ document.getElementById('loginView').style.display='flex'; }
+function hideLogin(){ document.getElementById('loginView').style.display='none'; }
+
+function kakaoLogin(){
+  if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
+  sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
+}
+async function logout(){
+  closeAll();
+  if(sb){ await sb.auth.signOut(); }   // onAuthStateChange → boot() → 로그인 화면
+  else { showLogin(); }
+}
+
+/* 채팅 앱 진입(공통 초기화) */
+function initPatientApp(){
+  hideLogin();
+  renderConvs();
+  toggleSend();
+}
+/* 비상 우회: 로컬 익명 모드(Solar·Supabase 안 돼도 시연 가능). currentPid=null → 임의 id. */
+function startDemoFallback(){
+  currentPid = null;
+  initPatientApp();
+}
+
+async function boot(){
+  if(DEMO_MODE || !sb) return startDemoFallback();   // ?demo=1 또는 미설정 → 익명 데모
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session) return showLogin();
+    const u = session.user;
+    const { data:prof } = await sb.from('profiles').select('role').eq('id', u.id).single();
+    if(prof?.role === 'doctor'){ location.href = 'doctor.html'; return; }
+    currentPid = u.id;          // 환자 식별 = 계정
+    initPatientApp();
+  }catch(e){
+    console.warn('boot 실패 → 데모 폴백', e);
+    startDemoFallback();        // 네트워크/세션 실패해도 시연 안 깨짐
+  }
+}
+sb && sb.auth.onAuthStateChange(()=> boot());
+boot();
 </script>
 </body>
 </html>
