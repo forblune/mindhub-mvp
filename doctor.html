@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="icon" href="favicon.png">
 <title>마음기록 — 의사 대시보드</title>
 <style>
@@ -11,7 +11,7 @@
     --bg:#ffffff; --side:#f7f7f8; --line:#e6e7eb; --text:#1f2328; --sub:#6b7280; --muted:#9aa1ab;
     --accent:#1d9e75; --danger:#e2504a; --hdr:54px;
   }
-  html,body{ height:100%; }
+  html,body{ height:100%; height:100dvh; }
   body{ font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; background:var(--bg); color:var(--text); }
 
   /* 로그인 / 권한없음 게이트 */
@@ -22,6 +22,9 @@
   .kakao-btn{ width:100%; border:none; border-radius:12px; background:#FEE500; color:#191600;
               font-size:15.5px; font-weight:700; padding:14px; cursor:pointer; font-family:inherit; }
   .kakao-btn:hover{ filter:brightness(.97); }
+  .demo-btn{ width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--text);
+             font-size:14px; font-weight:700; padding:12px; cursor:pointer; font-family:inherit; margin-top:9px; }
+  .demo-btn:hover{ background:var(--side); }
   .gate-link{ display:inline-block; margin-top:18px; font-size:13px; color:var(--accent); text-decoration:none; }
   .gate-foot{ font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.6; }
 
@@ -30,6 +33,7 @@
          justify-content:space-between; padding:0 14px; border-bottom:1px solid var(--line); background:var(--bg); z-index:30; }
   .dhdr .t{ font-size:15.5px; font-weight:600; }
   .dhdr .who{ font-size:12px; color:var(--muted); }
+  .dhdr-actions{ display:flex; align-items:center; gap:2px; }
   .txtbtn{ border:none; background:none; font-size:14px; color:var(--accent); cursor:pointer; padding:8px 10px; border-radius:8px; }
   .txtbtn:hover{ background:#0000000a; }
 
@@ -82,6 +86,7 @@
     <div class="gate-logo">마음기록 · 의사용</div>
     <div class="gate-sub">담당 환자의 진료 전 요약 리포트를<br>한눈에 확인하세요.</div>
     <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 로그인</button>
+    <button class="demo-btn" onclick="startDoctorDemo()">로그인 없이 가상 리포트 보기</button>
     <div class="gate-foot">의사 계정으로 로그인해야 접근할 수 있어요. (데모 — 가상 환자)</div>
   </div>
 </div>
@@ -99,7 +104,10 @@
 <!-- 대시보드 -->
 <header class="dhdr" id="dhdr" style="display:none">
   <div><span class="t">의사 대시보드</span> <span class="who" id="who"></span></div>
-  <button class="txtbtn" onclick="logout()">로그아웃</button>
+  <div class="dhdr-actions">
+    <button class="txtbtn" id="refreshBtn" onclick="refreshDashboard()">↻ 새로고침</button>
+    <button class="txtbtn" onclick="logout()">로그아웃</button>
+  </div>
 </header>
 <div class="dwrap" id="dwrap" style="display:none">
   <aside class="plist">
@@ -119,6 +127,14 @@ const SUPABASE_URL  = "https://vhxvqtbemahbcbrbnkcv.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoeHZxdGJlbWFoYmNicmJua2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODEwNDMsImV4cCI6MjA5NjU1NzA0M30.kKowienH_myTszuJuG3HSuIDl9TUM6EBT4ZUV6jqRM0";
 const sb = (SUPABASE_URL && SUPABASE_ANON && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
+const DEMO_PATIENT = { id:'demo-patient', display_name:'김하늘 (가상)' };
+const DEMO_ENTRIES = [
+  { at:'2026-06-16T09:00:00+09:00', text:null, sig:{ sleep_h:6, med_taken:true,  mood:5, stressor:null, red_flag:false, evidence:null } },
+  { at:'2026-06-17T09:00:00+09:00', text:null, sig:{ sleep_h:4, med_taken:true,  mood:4, stressor:'직장 스트레스', red_flag:false, evidence:null } },
+  { at:'2026-06-18T09:00:00+09:00', text:null, sig:{ sleep_h:3, med_taken:false, mood:2, stressor:'직장 스트레스', red_flag:false, evidence:null } },
+  { at:'2026-06-19T09:00:00+09:00', text:'요즘 다 끝내고 싶다는 생각이 들어.', sig:{ sleep_h:null, med_taken:null, mood:1, stressor:null, red_flag:true, evidence:'요즘 다 끝내고 싶다는 생각이 들어.' } }
+];
 
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -165,6 +181,9 @@ function sleepBars(series){
 
 /* ===== 환자 목록 ===== */
 let patients = [];
+let selectedPid = null;
+let reportRequestSeq = 0;
+let doctorDemo = false;
 function pLabel(p){ return p.display_name || ('환자 ' + (p.id||'').slice(0,6)); }
 
 async function loadPatients(){
@@ -174,33 +193,42 @@ async function loadPatients(){
     const { data, error } = await sb.from('profiles').select('id,display_name').eq('role','patient');
     if(error) throw error;
     patients = data || [];
+    if(selectedPid && !patients.some(p=>p.id===selectedPid)) selectedPid = null;
     if(!patients.length){ el.innerHTML = '<div class="pempty">아직 등록된 환자가 없어요.<br>환자가 카카오로 로그인하면 표시돼요.</div>'; return; }
     el.innerHTML = patients.map(p =>
-      `<div class="pitem" data-pid="${escapeHtml(p.id)}" onclick="selectPatient('${escapeHtml(p.id)}')">
+      `<div class="pitem${p.id===selectedPid?' active':''}" data-pid="${escapeHtml(p.id)}" onclick="selectPatient('${escapeHtml(p.id)}')">
          <span class="pav">${escapeHtml(pLabel(p).slice(0,2))}</span>
          <span>${escapeHtml(pLabel(p))}</span></div>`).join('');
   }catch(e){ console.warn('profiles select failed', e); el.innerHTML = '<div class="pempty">환자 목록을 불러오지 못했어요.</div>'; }
 }
 
 async function selectPatient(pid){
+  selectedPid = pid;
+  const requestId = ++reportRequestSeq;
   document.querySelectorAll('.pitem').forEach(n => n.classList.toggle('active', n.dataset.pid===pid));
   const dinner = document.getElementById('dinner');
   dinner.innerHTML = '<div class="dempty">불러오는 중…</div>';
-  const entries = await loadCloudEntries(pid) || [];
+  const entries = await loadCloudEntries(pid);
+  if(requestId!==reportRequestSeq || selectedPid!==pid) return;
+  if(entries===null){
+    dinner.innerHTML = '<div class="dempty">리포트를 불러오지 못했어요.<br>연결을 확인한 뒤 새로고침해 주세요.</div>';
+    return;
+  }
   const p = patients.find(x => x.id===pid);
-  renderDoctorReport(entries, p ? pLabel(p) : pid);
+  renderDoctorReport(entries, p ? pLabel(p) : pid, false);
 }
 
 /* ===== 리포트(읽기 전용 — 비공개 토글 없음, 예외 Red Flag만 부각) ===== */
-function renderDoctorReport(entries, label){
+function renderDoctorReport(entries, label, isDemo){
   const dinner = document.getElementById('dinner');
   const a = aggregate(entries);
   if(a.n===0){
     dinner.innerHTML = `<div class="dempty">이 환자는 아직 정리된 대화가 없어요.</div>`;
     return;
   }
+  const updated = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   let h = `<div class="rhead"><span class="nm">${escapeHtml(label)}</span><span class="cnt">대화 ${a.n}건</span></div>
-           <div class="rsub">환자가 공유한 범위에서 자동 정리된 요약입니다. 읽기 전용 · 예외(Red Flag)만 부각됩니다.</div>`;
+           <div class="rsub">환자가 공유한 범위에서 자동 정리된 요약입니다. 읽기 전용 · ${updated} 확인 · 실시간 응급 모니터링 도구가 아닙니다.</div>`;
 
   if(a.red){
     h += `<div class="triage">
@@ -217,7 +245,7 @@ function renderDoctorReport(entries, label){
   h += `<div class="sec"><div class="lbl">③ 안전·자살 리스크</div><div class="val">${a.red ? '<span class="bad">위험 신호 감지</span> · 계획/준비 여부는 진료 시 확인' : '특이 위험 신호 없음'}</div></div>`;
   h += `<div class="sec"><div class="lbl">④ 스트레스원·환경</div><div class="val">${a.stressors.length ? escapeHtml(a.stressors.join(', ')) : '특이 사항 없음'}</div></div>`;
   h += `<div class="sec"><div class="lbl">⑤ 정신상태·기타</div><div class="val">${a.moodAvg!=null ? `기분 평균 ${a.moodAvg}/10` : '기분 데이터 부족'}</div></div>`;
-  h += `<div class="rnote">ℹ 이 리포트는 <b>진단이 아니라</b> 환자의 일상 대화에서 정리한 <b>기록 요약</b>입니다. 의학적 판단은 의사가 합니다. (데모 — 가상 데이터)</div>`;
+  h += `<div class="rnote">ℹ 이 리포트는 <b>진단이나 응급 알림이 아니라</b> 환자의 일상 대화에서 정리한 <b>진료 전 기록 요약</b>입니다. 의학적 판단과 안전 평가는 의료진이 직접 합니다.${isDemo?' (평가용 가상 데이터)':''}</div>`;
   dinner.innerHTML = h;
 }
 
@@ -236,14 +264,46 @@ function kakaoLogin(){
 }
 async function logout(){ if(sb) await sb.auth.signOut(); else setView('login'); }
 
+function startDoctorDemo(){
+  doctorDemo = true;
+  selectedPid = DEMO_PATIENT.id;
+  patients = [DEMO_PATIENT];
+  document.getElementById('who').textContent = '· 평가용 가상 데이터';
+  setView('dash');
+  document.getElementById('plist').innerHTML =
+    `<div class="pitem active" data-pid="${DEMO_PATIENT.id}">
+       <span class="pav">김하</span><span>${DEMO_PATIENT.display_name}</span><span class="red">●</span></div>`;
+  renderDoctorReport(DEMO_ENTRIES, DEMO_PATIENT.display_name, true);
+}
+
+async function refreshDashboard(){
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  try{
+    if(doctorDemo){
+      renderDoctorReport(DEMO_ENTRIES, DEMO_PATIENT.display_name, true);
+      return;
+    }
+    const keepPid = selectedPid;
+    await loadPatients();
+    if(keepPid && patients.some(p=>p.id===keepPid)) await selectPatient(keepPid);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
 async function boot(){
+  if(DEMO_MODE){ startDoctorDemo(); return; }
   if(!sb){ setView('login'); return; }
   try{
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ setView('login'); return; }
     const u = session.user;
-    const { data:prof } = await sb.from('profiles').select('role,display_name').eq('id', u.id).single();
+    const { data:prof, error:profError } = await sb.from('profiles').select('role,display_name').eq('id', u.id).single();
+    if(profError) throw profError;
     if(prof?.role !== 'doctor'){ setView('deny'); return; }
+    doctorDemo = false;
+    selectedPid = null;
     document.getElementById('who').textContent = prof.display_name ? `· ${prof.display_name} 선생님` : '';
     setView('dash');
     loadPatients();
