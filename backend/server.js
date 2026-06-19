@@ -5,7 +5,13 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const { CHAT_SYSTEM_PROMPT, chatTokenBudget } = require("./conversation-style");
+const {
+  CHAT_SYSTEM_PROMPT,
+  conversationMode,
+  turnInstruction,
+  chatTokenBudget,
+  normalizeChatReply
+} = require("./conversation-style");
 
 const app = express();
 app.disable("x-powered-by");
@@ -185,12 +191,17 @@ app.post("/chat", requireAllowedOrigin, chatLimiter, async (req, res) => {
     return res.status(413).json({ error:"input_too_long", message:"대화가 너무 길어요. 새 대화에서 다시 시도해 주세요." });
   }
   const lastUser = [...recent].reverse().find(m => m.role === "user")?.content || "";
-  const maxTokens = chatTokenBudget(lastUser);
+  const mode = conversationMode(lastUser);
+  const maxTokens = chatTokenBudget(mode);
 
   try {
     const r = await callSolar({
       model: MODEL,
-      messages: [ { role: "system", content: CHAT_SYSTEM_PROMPT }, ...recent ],
+      messages: [
+        { role: "system", content: CHAT_SYSTEM_PROMPT },
+        { role: "system", content: turnInstruction(mode) },
+        ...recent
+      ],
       max_tokens: maxTokens,
       temperature: 0.65
     }, res);
@@ -200,7 +211,7 @@ app.post("/chat", requireAllowedOrigin, chatLimiter, async (req, res) => {
       return safeError(res, 502, "ai_unavailable", "AI 답변 기능이 잠시 불안정합니다.");
     }
     const data = await r.json();
-    const reply = (data.choices?.[0]?.message?.content || "").trim();
+    const reply = normalizeChatReply(data.choices?.[0]?.message?.content || "", mode);
     return res.json({ reply });
   } catch (e) {
     console.error("chat request failed", e.name || "Error", e.message || "");
