@@ -77,7 +77,7 @@
 <body>
 
 <!-- 로그인 게이트 -->
-<div class="gate" id="loginView" style="display:none">
+<div class="gate" id="loginView">
   <div class="gate-card">
     <div class="gate-logo">마음기록 · 의사용</div>
     <div class="gate-sub">담당 환자의 진료 전 요약 리포트를<br>한눈에 확인하세요.</div>
@@ -223,15 +223,20 @@ function renderDoctorReport(entries, label){
   dinner.innerHTML = h;
 }
 
-/* ===== 게이트 (로그인 + 의사 권한) ===== */
-function show(id){ document.getElementById(id).style.display = (id==='dwrap'||id==='dhdr') ? '' : 'flex'; }
-function hideAll(){ ['loginView','denyView','dhdr','dwrap'].forEach(i => document.getElementById(i).style.display='none'); }
+/* ===== 게이트 (로그인 + 의사 권한) =====
+   loginView는 기본 노출(HTML) → JS가 늦거나 안 돌아도 백지 대신 로그인 화면이 보임. */
+function setView(v){   // v: 'login' | 'deny' | 'dash'
+  document.getElementById('loginView').style.display = v==='login' ? 'flex' : 'none';
+  document.getElementById('denyView').style.display  = v==='deny'  ? 'flex' : 'none';
+  document.getElementById('dhdr').style.display  = v==='dash' ? '' : 'none';
+  document.getElementById('dwrap').style.display = v==='dash' ? '' : 'none';
+}
 
 function kakaoLogin(){
   if(!sb){ alert('로그인 설정이 없습니다.'); return; }
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
 }
-async function logout(){ if(sb) await sb.auth.signOut(); else { hideAll(); show('loginView'); } }
+async function logout(){ if(sb) await sb.auth.signOut(); else setView('login'); }
 
 /* 데모 전용 — 환자 모드로 되돌리기: 내 role을 patient로 바꾸고 채팅 앱으로 이동. */
 async function toPatientMode(){
@@ -246,18 +251,17 @@ async function toPatientMode(){
 }
 
 async function boot(){
-  hideAll();
-  if(!sb){ show('loginView'); return; }
+  if(!sb){ setView('login'); return; }
   try{
     const { data:{ session } } = await sb.auth.getSession();
-    if(!session){ show('loginView'); return; }
+    if(!session){ setView('login'); return; }
     const u = session.user;
     const { data:prof } = await sb.from('profiles').select('role,display_name').eq('id', u.id).single();
-    if(prof?.role !== 'doctor'){ show('denyView'); return; }
+    if(prof?.role !== 'doctor'){ setView('deny'); return; }
     document.getElementById('who').textContent = prof.display_name ? `· ${prof.display_name} 선생님` : '';
-    show('dhdr'); show('dwrap');
+    setView('dash');
     loadPatients();
-  }catch(e){ console.warn('boot 실패', e); show('loginView'); }
+  }catch(e){ console.warn('boot 실패', e); setView('login'); }
 }
 sb && sb.auth.onAuthStateChange(()=> boot());
 boot();
