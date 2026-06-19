@@ -261,8 +261,8 @@
 <!-- 계정 메뉴 -->
 <div class="acct" id="acct">
   <div class="head">
-    <span class="avatar" style="cursor:default">나</span>
-    <div><div class="nm">홍길동 (데모)</div><div class="em">가상 환자 계정</div></div>
+    <span class="avatar" style="cursor:default" id="acctAva">나</span>
+    <div><div class="nm" id="acctName">게스트 (데모)</div><div class="em" id="acctEmail">로그인 전</div></div>
   </div>
   <div class="a-item" onclick="openReport()"><span class="ic">🗂</span> 리포트 기록 보기</div>
   <div class="a-item" onclick="openReport()"><span class="ic">⬇</span> 내보내기</div>
@@ -864,6 +864,13 @@ const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
 function showLogin(){ document.getElementById('loginView').style.display='flex'; }
 function hideLogin(){ document.getElementById('loginView').style.display='none'; }
 
+/* 계정 메뉴 표시(로그인 사용자 이름). */
+function setAccount(name, sub){
+  document.getElementById('acctName').textContent = name;
+  document.getElementById('acctEmail').textContent = sub;
+  document.getElementById('acctAva').textContent = (name||'나').slice(0,1);
+}
+
 function kakaoLogin(){
   if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
@@ -892,9 +899,11 @@ async function boot(){
     const { data:{ session } } = await sb.auth.getSession();
     if(!session) return showLogin();
     const u = session.user;
-    const { data:prof } = await sb.from('profiles').select('role').eq('id', u.id).single();
+    const { data:prof } = await sb.from('profiles').select('role,display_name').eq('id', u.id).single();
     if(prof?.role === 'doctor'){ location.href = 'doctor.html'; return; }
     currentPid = u.id;          // 환자 식별 = 계정
+    const nm = prof?.display_name || u.user_metadata?.name || u.user_metadata?.nickname || '환자';
+    setAccount(nm, '카카오 로그인 · 환자');
     initPatientApp();
   }catch(e){
     console.warn('boot 실패 → 데모 폴백', e);
