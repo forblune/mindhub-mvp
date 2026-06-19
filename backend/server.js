@@ -4,6 +4,7 @@
 
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 app.use(cors());                 // 프론트(다른 도메인)에서 호출 허용
@@ -15,6 +16,10 @@ const SOLAR_URL = "https://api.upstage.ai/v1/chat/completions";
 
 // 헬스체크 (Render 깨우기용 — 발표 직전 한 번 호출해 cold start 방지)
 app.get("/", (_req, res) => res.send("ok"));
+
+// 프론트 정적 파일 서빙 (상위 폴더의 app.html, index.html 등)
+// → https://mindhub-mvp.onrender.com/app.html 로 접근 가능
+app.use(express.static(path.join(__dirname, "..")));
 
 // 추출 엔드포인트
 app.post("/extract", async (req, res) => {
