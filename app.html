@@ -170,11 +170,9 @@
               align-items:center; justify-content:center; gap:8px; font-family:inherit; }
   .kakao-btn:hover{ filter:brightness(.97); }
   .login-foot{ font-size:11.5px; color:var(--muted); margin-top:16px; line-height:1.6; }
-  .login-signup{ font-size:13px; color:var(--sub); margin-top:14px; }
-  .login-signup a{ color:var(--accent); font-weight:600; cursor:pointer; text-decoration:underline; }
-  .login-doctor{ display:inline-block; margin-top:26px; font-size:12.5px; color:var(--muted);
-                 text-decoration:none; cursor:pointer; border-bottom:1px solid transparent; }
-  .login-doctor:hover{ color:var(--accent); border-bottom-color:var(--accent); }
+  .login-doctor{ display:inline-block; margin-top:26px; font-size:13px; color:var(--accent); font-weight:600;
+                 text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+  .login-doctor:hover{ opacity:.75; }
   .consent-title{ font-size:16px; font-weight:700; margin-bottom:12px; }
   .consent-body{ font-size:13.5px; color:var(--text); line-height:1.75; text-align:left;
                  background:#f0f7f4; border:1px solid #cfe7dd; border-radius:14px; padding:14px 16px; margin-bottom:20px; }
@@ -219,9 +217,8 @@
     <div class="login-logo">마음기록</div>
     <div class="login-sub">평소처럼 편하게 얘기하면,<br>진료에 도움되도록 정리해 드려요.</div>
     <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 시작하기</button>
-    <div class="login-signup">아직 가입하지 않으셨나요? <a onclick="kakaoLogin()">카카오로 회원가입하기</a></div>
-    <div class="login-foot">로그인하면 기록이 안전하게 저장돼요. (데모 — 가상 환자)</div>
-    <a class="login-doctor" href="doctor.html">혹시 의사이신가요?</a>
+    <div class="login-foot">처음이면 자동으로 가입돼요 · 기록은 안전하게 저장돼요 (데모 — 가상 환자)</div>
+    <a class="login-doctor" href="doctor.html">혹시 의사이신가요? ›</a>
   </div>
 </div>
 
