@@ -99,7 +99,10 @@
 <!-- 대시보드 -->
 <header class="dhdr" id="dhdr" style="display:none">
   <div><span class="t">의사 대시보드</span> <span class="who" id="who"></span></div>
-  <button class="txtbtn" onclick="logout()">로그아웃</button>
+  <div>
+    <button class="txtbtn" onclick="toPatientMode()">환자 모드(데모)</button>
+    <button class="txtbtn" onclick="logout()">로그아웃</button>
+  </div>
 </header>
 <div class="dwrap" id="dwrap" style="display:none">
   <aside class="plist">
@@ -229,6 +232,18 @@ function kakaoLogin(){
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
 }
 async function logout(){ if(sb) await sb.auth.signOut(); else { hideAll(); show('loginView'); } }
+
+/* 데모 전용 — 환자 모드로 되돌리기: 내 role을 patient로 바꾸고 채팅 앱으로 이동. */
+async function toPatientMode(){
+  if(!sb) return;
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session) return;
+  try{
+    const { error } = await sb.from('profiles').update({ role:'patient' }).eq('id', session.user.id);
+    if(error) throw error;
+    location.href = 'app.html';
+  }catch(e){ console.warn('환자 전환 실패', e); }
+}
 
 async function boot(){
   hideAll();

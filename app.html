@@ -314,6 +314,11 @@
     <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">⑤ 정신상태·기타</span><button class="set-switch" id="sd_mood" onclick="toggleShareDefault('mood')">공유</button></div>
     <div class="help" style="margin-top:8px">리포트를 열 때 이 기본값으로 시작해요. 그때그때 다시 바꿀 수 있어요.</div>
 
+    <div class="set-sectitle" style="margin-top:22px">데모</div>
+    <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">의사 모드 (데모)</span>
+      <button class="set-switch off" id="sd_doctor" onclick="toggleDoctorMode()">꺼짐</button></div>
+    <div class="help" style="margin-top:8px">켜면 이 계정이 <b>의사</b>로 전환돼 의사 대시보드(doctor.html)로 이동해요. 끄려면 의사 화면 상단의 "환자 모드"를 누르세요. (데모 전용 — 실서비스는 별도 인증 필요)</div>
+
     <div class="set-sectitle" style="margin-top:22px">안내</div>
     <button class="set-linkbtn" onclick="showOnboardingAgain()">온보딩 고지 다시 보기</button>
   </div></div>
@@ -605,6 +610,20 @@ function showOnboardingAgain(){
   const o = document.getElementById('onboarding'); if(o) o.style.display='';
   document.getElementById('chat').scrollTop = 0;
   toast('온보딩 안내를 다시 표시했어요');
+}
+
+/* 데모 전용 — 의사 모드: 로그인 사용자의 profiles.role을 doctor로 바꾸고 대시보드로 이동.
+   (app.html은 환자 화면이라 토글은 항상 '꺼짐'에서 시작 — 켜는 순간 의사로 전환·이동.) */
+async function toggleDoctorMode(){
+  if(!sb){ toast('로그인 후 사용할 수 있어요 (데모 모드에선 불가)'); return; }
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ toast('로그인 후 사용할 수 있어요'); return; }
+  try{
+    const { error } = await sb.from('profiles').update({ role:'doctor' }).eq('id', session.user.id);
+    if(error) throw error;
+    toast('의사 모드로 전환했어요');
+    location.href = 'doctor.html';
+  }catch(e){ console.warn('의사 전환 실패', e); toast('전환에 실패했어요 — 잠시 후 다시'); }
 }
 
 /* ===== 채팅 UI ===== */
