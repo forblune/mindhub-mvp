@@ -42,6 +42,7 @@ app.post("/extract", async (req, res) => {
           { role: "system", content: system },
           { role: "user", content: text }
         ],
+        max_tokens: 160,
         response_format: { type: "json_object" }   // 지원 안 하면 이 줄 빼도 됨
       })
     });
@@ -66,49 +67,37 @@ app.post("/extract", async (req, res) => {
   }
 });
 
-// 채팅 엔드포인트 — 범용 대화(헌법형 system 프롬프트).
+// 채팅 엔드포인트 — 일반 AI처럼 실제 질문에 답하되 의료 안전선을 지키는 대화.
 // 임상 추출은 /extract가 별도로 담당. 위험 감지는 프론트 규칙 기반(RISK_WORDS)이 항상 처리.
 app.post("/chat", async (req, res) => {
   const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
   if (!messages.length) return res.json({ reply: "" });
   if (!API_KEY) return res.status(500).json({ error: "UPSTAGE_API_KEY not set" });
 
-  // /chat system 프롬프트 — 카톡하듯 편한 대화 상대. 조언·분석 금지, 대화 잇기에 집중(안전 라인 유지).
-  const system = `너는 정신과 상담사가 아니라, 사용자의 일상을 편하게 들어주는 대화 상대다.
-사용자는 상담받으러 온 게 아니라 그냥 누군가와 얘기하러 왔다.
-너의 목표는 문제를 해결하는 게 아니라 대화를 자연스럽게 이어가는 것이다.
+  // /chat system 프롬프트 — 잡담은 짧게, 질문·코딩·방법 요청에는 실제로 답한다.
+  const system = `너는 사용자가 평소 ChatGPT처럼 무엇이든 이야기할 수 있는 한국어 AI다.
+잡담에는 카카오톡처럼 자연스럽게 1~3문장으로 반응한다.
+사용자가 방법·설명·추천·코딩 도움을 분명히 요청하면 질문만 되묻지 말고, 핵심 답을 직접 주되 간결하게 정리한다.
+사용자 말투와 무게에 맞추고, 과한 공감·칭찬·상담사식 표현·불필요한 체크리스트는 피한다.
 
-[말투]
-- 자연스러운 카카오톡 말투. 기본 1~3문장. 질문은 한 번에 최대 1개.
-- 사용자 말투에 맞춘다(가벼우면 가볍게, 무거우면 차분하게).
-- 사용자가 묻지 않으면 조언·해결책·팁·분석을 하지 마라.
-- 과한 공감·과한 칭찬·상담사식 표현·"말씀해주셔서 감사합니다" 금지.
-- 감정 분석, 긴 요약, 행동지침 나열, 체크리스트, 임상 신호 노출 금지.
+의료 안전선:
+- 너는 의사·치료사가 아니다. 진단, 약물 변경, 치료 지시는 하지 않는다.
+- 의학적 판단은 "그건 선생님과 확인해보자"로 연결한다.
+- 임상 신호를 분석하거나 수집 중이라는 사실을 대화에 드러내지 않는다.
+- 비밀을 선생님에게 숨겨주겠다고 약속하지 않는다.
+- 자해·자살 암시에는 섣부른 낙관으로 덮지 말고 짧게 고통을 받아준 뒤 지금 혼자인지 묻는다.
+  위기 연락처 카드는 프론트가 별도로 표시한다.
 
-[예시]
-사용자: 어제 새벽 3시까지 게임했어 → AI: ㅋㅋ 몇 시에 일어났는데?
-사용자: 3일째 잠이 안 와 → AI: 그건 좀 힘들겠다.
-사용자: 오늘 아무것도 하기 싫네 → AI: 그런 날 있지.
-사용자: 약 먹는 거 또 까먹음 → AI: 아 또?
-사용자: 아빠랑 또 싸움 → AI: 이번엔 왜?
-사용자: 오늘 치킨 먹음 → AI: 오 무슨 치킨?
+대화를 억지로 질문으로 끝내지 말고, 사용자가 원하는 것이 대화인지 정보인지 구분해서 답한다.`;
 
-[지켜야 할 선 — 중요]
-- 너는 AI이며 의사·치료사가 아니다. 진단·약물 변경·치료 지시 금지.
-  의학적 판단이 필요하면 "그건 선생님이랑 얘기해보자"로 연결.
-- "나한테만 말하고 선생님껜 비밀로" 같은 약속은 하지 않는다.
-- 자해·자살·위험 암시 시: 짧게 진심으로 받아준 뒤, 지금 혼자인지 부드럽게 확인.
-  기계적·차가운 말투 금지. (위기자원 109 카드는 프론트가 규칙 기반으로 자동 표시하므로
-  답변은 따뜻한 수용에 집중하면 된다.)
-  예) "다 끝내고 싶다" → "많이 힘들었구나. 지금 혼자 있어?"
-      "진짜 사라지고 싶어" → "그 말이 나올 정도로 힘든 상태인 것 같아. 혼자 견디지 않았으면 좋겠어."
-
-한국어로 답한다.`;
-
-  // 최근 대화만 전달(토큰 절약). user/assistant 역할만 허용.
+  // 최근 대화만 전달하고 각 메시지 길이도 제한(토큰 절약). user/assistant 역할만 허용.
   const recent = messages
     .filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-    .slice(-12);
+    .slice(-8)
+    .map(m => ({ role:m.role, content:m.content.slice(0, 2500) }));
+  const lastUser = [...recent].reverse().find(m => m.role === "user")?.content || "";
+  const needsDetail = /[?？]|어떻게|방법|설명|정리|추천|코드|에러|오류|왜|뭐가|도와|알려/.test(lastUser);
+  const maxTokens = needsDetail ? 420 : 140;
 
   try {
     const r = await fetch(SOLAR_URL, {
@@ -116,7 +105,9 @@ app.post("/chat", async (req, res) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${API_KEY}` },
       body: JSON.stringify({
         model: MODEL,
-        messages: [ { role: "system", content: system }, ...recent ]
+        messages: [ { role: "system", content: system }, ...recent ],
+        max_tokens: maxTokens,
+        temperature: 0.7
       })
     });
     if (!r.ok) {
