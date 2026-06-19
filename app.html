@@ -156,6 +156,23 @@
     .share-btn{ display:none; }
   }
 
+  /* ===== 설정 화면(작업순서 7) — 폼 요소 ===== */
+  .set-sectitle{ font-size:12px; color:var(--muted); font-weight:700; letter-spacing:.3px; margin:6px 0 10px; }
+  .set-row{ margin-bottom:14px; }
+  .set-row label{ display:block; font-size:13px; color:var(--sub); margin-bottom:6px; font-weight:600; }
+  .set-row input, .set-row textarea{ width:100%; border:1px solid var(--line); border-radius:11px; padding:11px 13px;
+                                     font-size:15px; font-family:inherit; color:var(--text); background:#fff; outline:none; resize:none; }
+  .set-row input:focus, .set-row textarea:focus{ border-color:var(--accent); }
+  .set-row .help{ font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.5; }
+  .set-toggle{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line); }
+  .set-toggle .t-lbl{ font-size:14.5px; }
+  .set-switch{ flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 14px;
+               font-size:12.5px; color:var(--accent); cursor:pointer; }
+  .set-switch.off{ color:var(--muted); }
+  .set-linkbtn{ width:100%; text-align:left; border:1px solid var(--line); background:#fff; border-radius:11px;
+                padding:13px; font-size:14.5px; color:var(--text); cursor:pointer; }
+  .set-linkbtn:hover{ background:#0000000a; }
+
   /* 데스크탑(넓은 화면): 사이드바를 고정 노출하고 콘텐츠를 옆으로 민다(GPT 스타일).
      햄버거는 접기/펼치기 토글. 좁아지면 자동으로 위의 오버레이 드로어로 전환. */
   @media(min-width:900px){
@@ -227,7 +244,7 @@
   </div>
   <div class="a-item" onclick="openReport()"><span class="ic">🗂</span> 리포트 기록 보기</div>
   <div class="a-item" onclick="openReport()"><span class="ic">⬇</span> 내보내기</div>
-  <div class="a-item" onclick="comingSoon('설정')"><span class="ic">⚙</span> 설정</div>
+  <div class="a-item" onclick="openSettings()"><span class="ic">⚙</span> 설정</div>
 </div>
 
 <!-- 리포트 화면(⑤) -->
@@ -241,6 +258,44 @@
   <div class="rv-actions">
     <button class="ghost" onclick="enterDoctorView()">의사에게 보여주기</button>
     <button class="primary" onclick="exportPDF()">PDF 내보내기</button>
+  </div>
+</div>
+
+<!-- 설정 화면(작업순서 7) -->
+<div class="report-view" id="settingsView">
+  <div class="rv-bar">
+    <button class="txtbtn" onclick="closeSettings()">‹ 닫기</button>
+    <div class="rv-title">설정</div>
+    <span style="width:54px"></span>
+  </div>
+  <div class="rv-scroll"><div class="rv-inner">
+    <div class="rv-sub">일반 챗봇과 다른 부분은 여기예요. 입력한 내용은 이 기기에만 저장돼요. (데모 — 가상 데이터)</div>
+
+    <div class="set-sectitle">진료 정보</div>
+    <div class="set-row"><label>다음 진료일</label>
+      <input type="date" id="setVisit"></div>
+    <div class="set-row"><label>담당 병원</label>
+      <input type="text" id="setHospName" placeholder="예: ○○정신건강의학과"></div>
+    <div class="set-row"><label>담당 병원 연락처</label>
+      <input type="tel" id="setHospPhone" placeholder="예: 02-000-0000" inputmode="tel">
+      <div class="help">위기 자원 카드에 함께 표시돼요.</div></div>
+    <div class="set-row"><label>처방 약물 <span style="color:var(--muted);font-weight:400">(선택)</span></label>
+      <textarea id="setMeds" rows="2" placeholder="예: 에스시탈로프람 10mg, 졸피뎀 10mg"></textarea>
+      <div class="help">리포트의 약물 순응도 항목에 모니터링 근거로 표시돼요.</div></div>
+
+    <div class="set-sectitle" style="margin-top:22px">리포트 공유 기본값</div>
+    <div class="set-toggle"><span class="t-lbl">① 수면·기능</span><button class="set-switch" id="sd_sleep" onclick="toggleShareDefault('sleep')">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">② 약물 순응도</span><button class="set-switch" id="sd_med" onclick="toggleShareDefault('med')">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">③ 안전·자살 리스크</span><span class="lock">🔒 항상 포함</span></div>
+    <div class="set-toggle"><span class="t-lbl">④ 스트레스원·환경</span><button class="set-switch" id="sd_stressor" onclick="toggleShareDefault('stressor')">공유</button></div>
+    <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">⑤ 정신상태·기타</span><button class="set-switch" id="sd_mood" onclick="toggleShareDefault('mood')">공유</button></div>
+    <div class="help" style="margin-top:8px">리포트를 열 때 이 기본값으로 시작해요. 그때그때 다시 바꿀 수 있어요.</div>
+
+    <div class="set-sectitle" style="margin-top:22px">안내</div>
+    <button class="set-linkbtn" onclick="showOnboardingAgain()">온보딩 고지 다시 보기</button>
+  </div></div>
+  <div class="rv-actions">
+    <button class="primary" onclick="saveSettings()">저장</button>
   </div>
 </div>
 
@@ -306,9 +361,25 @@ async function getSignals(text){
   finally{ clearTimeout(timer); }
 }
 
+/* ===== 설정(작업순서 7) — localStorage 보관. "일반 챗봇과 다른 부분은 여기". ===== */
+function defaultShare(){ return { sleep:true, med:true, stressor:true, mood:true }; }
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem('mindhub_settings') || '{}');
+    return {
+      nextVisit:     s.nextVisit     || '',   // 다음 진료일
+      hospitalName:  s.hospitalName  || '',   // 담당 병원 (위기 카드)
+      hospitalPhone: s.hospitalPhone || '',   // 담당 병원 연락처 (위기 카드)
+      meds:          s.meds          || '',   // 처방 약물 (모니터링 근거, 선택)
+      shareDefault:  Object.assign(defaultShare(), s.shareDefault || {})  // 리포트 공유 기본값
+    };
+  }catch(e){ return { nextVisit:'', hospitalName:'', hospitalPhone:'', meds:'', shareDefault:defaultShare() }; }
+}
+let settings = loadSettings();
+
 /* ===== 리포트(⑤, 작업순서 6) — collected를 5영역으로 집계 ===== */
-/* 환자 항목별 공유/비공개 상태. 안전(safety)은 잠금 — 항상 포함(온보딩에서 고지). */
-let reportShare = { sleep:true, med:true, stressor:true, mood:true };
+/* 환자 항목별 공유/비공개 상태. 기본값은 설정의 shareDefault. 안전(safety)은 잠금 — 항상 포함(온보딩 고지). */
+let reportShare = { ...settings.shareDefault };
 
 function aggregate(){
   const sleepSeries = collected.map(c => c.sig.sleep_h);
@@ -353,7 +424,7 @@ function renderReport(){
     body.innerHTML = `<div class="rv-empty">아직 정리할 대화가 없어요.<br>채팅에서 일상 얘기를 나누면<br>여기에 자동으로 정리돼요.</div>`;
     return;
   }
-  let h = `<div class="rv-sub">최근 대화 ${a.n}건에서 조용히 정리한 요약이에요. 선생님께 보여드리기 전, 항목별로 비공개를 고를 수 있어요. (안전 항목은 보호를 위해 항상 포함돼요.)</div>`;
+  let h = `<div class="rv-sub">최근 대화 ${a.n}건에서 조용히 정리한 요약이에요. 선생님께 보여드리기 전, 항목별로 비공개를 고를 수 있어요. (안전 항목은 보호를 위해 항상 포함돼요.)${settings.nextVisit?` · 다음 진료: ${escapeHtml(settings.nextVisit)}`:''}</div>`;
 
   // 안전 Red Flag — 잠금(항상 포함). 맨 위 트리아지.
   if(a.red){
@@ -370,8 +441,9 @@ function renderReport(){
     : '수면 기록 없음';
   h += secRow('sleep', '① 수면·기능', sleepVal);
 
-  // ② 약물 순응도
-  h += secRow('med', '② 약물 순응도', a.medTotal ? `복약 ${a.medDays}/${a.medTotal}일` : '복약 기록 없음');
+  // ② 약물 순응도 (설정의 처방 약물이 있으면 근거로 함께 표시)
+  const medBase = a.medTotal ? `복약 ${a.medDays}/${a.medTotal}일` : '복약 기록 없음';
+  h += secRow('med', '② 약물 순응도', medBase + (settings.meds ? ` · 처방: ${escapeHtml(settings.meds)}` : ''));
 
   // ③ 안전·자살 리스크 — 잠금(빼기 불가)
   h += `<div class="sec" data-key="safety">
@@ -400,6 +472,7 @@ function toggleShare(key){
 
 function openReport(){
   closeAll();
+  reportShare = { ...settings.shareDefault };   // 설정의 공유 기본값 적용
   renderReport();
   document.getElementById('reportView').classList.add('on');
 }
@@ -422,6 +495,41 @@ function exitDoctorView(){
 }
 /* PDF 내보내기 — 브라우저 인쇄(→ PDF로 저장). 비공개 항목은 @media print에서 빠짐. */
 function exportPDF(){ window.print(); }
+
+/* ===== 설정 화면(작업순서 7) ===== */
+function openSettings(){
+  closeAll();
+  document.getElementById('setVisit').value     = settings.nextVisit;
+  document.getElementById('setHospName').value  = settings.hospitalName;
+  document.getElementById('setHospPhone').value = settings.hospitalPhone;
+  document.getElementById('setMeds').value      = settings.meds;
+  renderShareDefaults();
+  document.getElementById('settingsView').classList.add('on');
+}
+function closeSettings(){ document.getElementById('settingsView').classList.remove('on'); }
+function renderShareDefaults(){
+  ['sleep','med','stressor','mood'].forEach(k=>{
+    const b = document.getElementById('sd_'+k); if(!b) return;
+    const on = settings.shareDefault[k];
+    b.textContent = on ? '공유' : '비공개'; b.classList.toggle('off', !on);
+  });
+}
+function toggleShareDefault(k){ settings.shareDefault[k] = !settings.shareDefault[k]; renderShareDefaults(); }
+function saveSettings(){
+  settings.nextVisit     = document.getElementById('setVisit').value;
+  settings.hospitalName  = document.getElementById('setHospName').value.trim();
+  settings.hospitalPhone = document.getElementById('setHospPhone').value.trim();
+  settings.meds          = document.getElementById('setMeds').value.trim();
+  try{ localStorage.setItem('mindhub_settings', JSON.stringify(settings)); }catch(e){ /* 저장 불가 환경이면 세션 내에서만 유지 */ }
+  closeSettings(); toast('설정을 저장했어요');
+}
+/* 온보딩 고지 다시 보기 — 채팅 상단의 안내 카드를 다시 노출. */
+function showOnboardingAgain(){
+  closeSettings();
+  const o = document.getElementById('onboarding'); if(o) o.style.display='';
+  document.getElementById('chat').scrollTop = 0;
+  toast('온보딩 안내를 다시 표시했어요');
+}
 
 /* ===== 채팅 UI ===== */
 let logs = [];
@@ -458,16 +566,14 @@ function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.
 /* 위험 판정은 RISK_WORDS(규칙 기반)로 동기 처리 — Solar/네트워크와 무관하게 항상 작동. */
 function isRisk(text){ return RISK_WORDS.some(kw => text.includes(kw)); }
 
-/* 담당 병원 연락처는 설정(작업순서 7)에서 등록 → 등록되면 카드에 표시. 지금은 미등록. */
-let hospitalContact = null;
-
-/* 위기 자원 인라인 카드. 모달·화면전환 없이 채팅 흐름 안에 붙임. 대화는 계속 이어짐. */
+/* 위기 자원 인라인 카드. 모달·화면전환 없이 채팅 흐름 안에 붙임. 대화는 계속 이어짐.
+   담당 병원 연락처는 설정(작업순서 7)의 settings.hospitalPhone에서 가져옴 — 등록되면 카드에 표시. */
 function addCrisisCard(){
   const inner = document.getElementById('chatInner');
   const wrap = document.createElement('div');
   wrap.className = 'crisis-wrap';
-  const hosp = hospitalContact
-    ? `<a class="c-line c-hosp" href="tel:${escapeHtml(hospitalContact.replace(/[^0-9+]/g,''))}"><b>담당 병원 ${escapeHtml(hospitalContact)}</b><span>진료 시간 내</span></a>`
+  const hosp = settings.hospitalPhone
+    ? `<a class="c-line c-hosp" href="tel:${escapeHtml(settings.hospitalPhone.replace(/[^0-9+]/g,''))}"><b>${escapeHtml(settings.hospitalName||'담당 병원')} ${escapeHtml(settings.hospitalPhone)}</b><span>진료 시간 내</span></a>`
     : `<div class="c-line c-hosp">담당 병원 연락처 <span>설정에서 등록하면 표시돼요</span></div>`;
   wrap.innerHTML =
     '<div class="crisis">' +
@@ -571,7 +677,7 @@ function toggleAcct(){
 function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); }
 
 function newChat(){
-  logs=[]; collected=[]; reportShare={ sleep:true, med:true, stressor:true, mood:true };
+  logs=[]; collected=[]; reportShare={ ...settings.shareDefault };
   document.getElementById('chatInner').innerHTML='';
   const o=document.getElementById('onboarding'); if(o) o.style.display='';
   closeAll(); toast('새 대화를 시작했어요');
