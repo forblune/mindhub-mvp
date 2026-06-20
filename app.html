@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="icon" href="favicon.png">
 <title>마음기록 — 무엇이든 이야기해 보세요</title>
+<script>
+  (() => {
+    let theme = '';
+    try { theme = localStorage.getItem('mindhub_theme') || ''; } catch(e) {}
+    if(theme !== 'light' && theme !== 'dark'){
+      theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.dataset.theme = theme;
+  })();
+</script>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   :root{
@@ -12,14 +22,27 @@
     --text:#1f2328; --sub:#6b7280; --muted:#9aa1ab;
     --me:#1d9e75; --ai:#f2f3f5; --accent:#1d9e75; --danger:#e2504a;
     --shadow:0 8px 30px rgba(0,0,0,.12);
-    --hdr:54px; --maxw:780px; --drawer-w:300px;
+    --hdr-base:54px; --hdr:calc(var(--hdr-base) + env(safe-area-inset-top));
+    --maxw:780px; --drawer-w:300px;
+    color-scheme:light;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1412; --side:#141d1a; --panel:#17211d; --line:#33433d;
+    --text:#edf5f2; --sub:#b7c4bf; --muted:#899690;
+    --me:#168b66; --ai:#1b2823; --accent:#49cda2; --danger:#ff8179;
+    --shadow:0 8px 30px rgba(0,0,0,.42);
+    color-scheme:dark;
   }
   html,body{ height:100%; height:100dvh; }
-  body{ font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; background:var(--bg); color:var(--text); overflow:hidden; }
+  body{ font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; background:var(--bg); color:var(--text); overflow:hidden; overflow-wrap:break-word; }
+  button,input,textarea{ font:inherit; max-width:100%; }
+  button{ touch-action:manipulation; }
+  img,svg,video,canvas{ max-width:100%; height:auto; }
 
   /* ===== 헤더 ===== */
   .hdr{ position:fixed; top:0; left:0; right:0; height:var(--hdr); display:flex; align-items:center; justify-content:space-between;
-        padding:0 10px; background:var(--bg); border-bottom:1px solid var(--line); z-index:30; transition:left .22s ease; }
+        padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left));
+        background:var(--bg); border-bottom:1px solid var(--line); z-index:30; transition:left .22s ease; }
   .hdr .side-l, .hdr .side-r{ display:flex; align-items:center; gap:2px; }
   .iconbtn{ width:38px; height:38px; border:none; background:none; border-radius:9px; cursor:pointer; color:var(--text);
             display:flex; align-items:center; justify-content:center; font-size:19px; }
@@ -31,26 +54,30 @@
   /* ===== 채팅 영역 ===== */
   .main{ position:absolute; top:var(--hdr); bottom:0; left:0; right:0; display:flex; flex-direction:column; transition:left .22s ease; }
   .chat{ flex:1; overflow-y:auto; padding:18px 0 8px; }
-  .chat-inner{ max-width:var(--maxw); margin:0 auto; padding:0 16px; display:flex; flex-direction:column; gap:14px; }
-  .row{ display:flex; gap:10px; align-items:flex-start; }
+  .chat-inner{ max-width:var(--maxw); margin:0 auto;
+               padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));
+               display:flex; flex-direction:column; gap:14px; }
+  .row{ display:flex; gap:10px; align-items:flex-start; min-width:0; }
   .row.me{ justify-content:flex-end; }
-  .bubble{ max-width:86%; padding:11px 14px; border-radius:16px; font-size:15px; line-height:1.6; word-break:break-word; white-space:pre-wrap; }
+  .bubble{ max-width:86%; min-width:0; padding:11px 14px; border-radius:16px; font-size:15px; line-height:1.6;
+           word-break:break-word; overflow-wrap:anywhere; white-space:pre-wrap; }
   .row.ai .bubble{ background:var(--ai); border-bottom-left-radius:5px; }
   .row.me .bubble{ background:var(--me); color:#fff; border-bottom-right-radius:5px; }
   .row .ava{ width:28px; height:28px; border-radius:50%; flex:none; background:linear-gradient(135deg,#1d9e75,#3a82f7);
              color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; margin-top:1px; }
-  .notice{ max-width:var(--maxw); margin:2px auto 4px; padding:0 16px; }
+  .notice{ max-width:var(--maxw); margin:2px auto 4px;
+           padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left)); }
   .notice .card{ background:#f0f7f4; border:1px solid #cfe7dd; border-radius:14px; padding:12px 14px; font-size:13px; line-height:1.6; color:#2f5d4e; }
   /* 위기 자원 인라인 카드(④) — 모달 아님, 채팅 흐름 안에 따뜻하게. AI 말풍선과 같은 들여쓰기. */
   .crisis-wrap{ display:flex; padding-left:38px; }   /* AI 아바타(28)+gap(10) 만큼 들여써 정렬 */
-  .crisis{ max-width:86%; background:#fff6f4; border:1px solid #f2cbc7; border-radius:16px; padding:13px 15px; }
+  .crisis{ max-width:86%; min-width:0; background:#fff6f4; border:1px solid #f2cbc7; border-radius:16px; padding:13px 15px; }
   .crisis .c-title{ font-size:14.5px; font-weight:700; color:#b23b35; margin-bottom:3px; }
   .crisis .c-sub{ font-size:13px; line-height:1.6; color:#7a4a47; margin-bottom:10px; }
   .crisis .c-line{ display:flex; align-items:baseline; justify-content:space-between; gap:10px;
                    padding:9px 11px; margin-top:6px; background:#fff; border:1px solid #f0d6d3; border-radius:11px;
                    font-size:13.5px; color:var(--text); text-decoration:none; }
   .crisis a.c-line:hover{ background:#fff0ee; }
-  .crisis .c-line b{ font-weight:600; }
+  .crisis .c-line b{ font-weight:600; min-width:0; overflow-wrap:anywhere; }
   .crisis .c-line span{ font-size:11.5px; color:var(--muted); flex:none; }
   .crisis .c-hosp{ color:var(--sub); }
 
@@ -61,10 +88,11 @@
 
   /* ===== 입력창 ===== */
   .composer{ border-top:1px solid var(--line); background:var(--bg); padding:10px 0 calc(14px + env(safe-area-inset-bottom)); }
-  .composer-inner{ max-width:var(--maxw); margin:0 auto; padding:0 16px; display:flex; align-items:flex-end; gap:8px; }
+  .composer-inner{ max-width:var(--maxw); margin:0 auto; padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));
+                   display:flex; align-items:flex-end; gap:8px; }
   .composer .field{ flex:1; display:flex; align-items:flex-end; background:var(--side); border:1px solid var(--line);
-                    border-radius:22px; padding:6px 6px 6px 16px; }
-  .composer textarea{ flex:1; border:none; background:none; resize:none; outline:none; font-size:15px; line-height:1.5;
+                    border-radius:22px; padding:6px 6px 6px 16px; min-width:0; }
+  .composer textarea{ flex:1; min-width:0; border:none; background:none; resize:none; outline:none; font-size:15px; line-height:1.5;
                       color:var(--text); max-height:140px; padding:6px 0; font-family:inherit; }
   .send{ width:38px; height:38px; border:none; border-radius:50%; background:var(--accent); color:#fff; font-size:17px;
          cursor:pointer; flex:none; display:flex; align-items:center; justify-content:center; }
@@ -78,7 +106,7 @@
   /* ===== 사이드 메뉴(드로어) ===== */
   .drawer{ position:fixed; top:0; bottom:0; left:0; width:300px; max-width:84vw; background:var(--side);
            border-right:1px solid var(--line); z-index:50; transform:translateX(-100%); transition:transform .22s ease;
-           display:flex; flex-direction:column; }
+           display:flex; flex-direction:column; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
   .drawer.on{ transform:translateX(0); }
   .drawer .d-top{ padding:12px 12px 8px; }
   .d-search{ width:100%; background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:13.5px;
@@ -100,6 +128,7 @@
   /* ===== 계정 메뉴(팝오버) ===== */
   .acct{ position:fixed; top:calc(var(--hdr) + 6px); right:10px; width:240px; background:var(--panel); border:1px solid var(--line);
          border-radius:14px; box-shadow:var(--shadow); z-index:50; padding:8px; transform-origin:top right;
+         max-width:calc(100vw - 20px); max-height:calc(100dvh - var(--hdr) - 16px); overflow-y:auto;
          opacity:0; transform:scale(.96); pointer-events:none; transition:opacity .15s, transform .15s; }
   .acct.on{ opacity:1; transform:scale(1); pointer-events:auto; }
   .acct .head{ display:flex; align-items:center; gap:10px; padding:8px 8px 10px; border-bottom:1px solid var(--line); margin-bottom:6px; }
@@ -118,12 +147,14 @@
                 transform:translateY(100%); transition:transform .26s ease; }
   .report-view.on{ transform:translateY(0); }
   .rv-bar{ height:var(--hdr); flex:none; display:flex; align-items:center; justify-content:space-between;
-           padding:0 8px; border-bottom:1px solid var(--line); }
+           padding:env(safe-area-inset-top) max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));
+           border-bottom:1px solid var(--line); }
   .rv-bar .rv-title{ font-size:15px; font-weight:600; }
   .rv-bar .txtbtn{ border:none; background:none; font-size:14px; color:var(--accent); cursor:pointer; padding:8px 10px; border-radius:8px; }
   .rv-bar .txtbtn:hover{ background:#0000000a; }
   .rv-scroll{ flex:1; overflow-y:auto; }
-  .rv-inner{ max-width:var(--maxw); margin:0 auto; padding:16px 16px 24px; }
+  .rv-inner{ max-width:var(--maxw); margin:0 auto;
+             padding:16px max(16px,env(safe-area-inset-right)) 24px max(16px,env(safe-area-inset-left)); }
   .rv-sub{ font-size:12.5px; color:var(--sub); margin:2px 0 14px; line-height:1.6; }
   .triage{ background:#fff4f3; border:1px solid #f1c4c0; border-radius:14px; padding:13px 15px; margin-bottom:14px; }
   .triage .h{ font-size:14.5px; font-weight:700; color:#b23b35; }
@@ -145,7 +176,8 @@
   .rbar i{ position:absolute; bottom:-15px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted); font-style:normal; }
   .rv-note{ font-size:12px; color:var(--sub); line-height:1.7; margin-top:14px; padding:12px 14px; background:var(--side); border-radius:12px; }
   .rv-empty{ text-align:center; color:var(--muted); font-size:14px; padding:60px 20px; line-height:1.8; }
-  .rv-actions{ flex:none; display:flex; gap:8px; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); }
+  .rv-actions{ flex:none; display:flex; gap:8px; padding:10px max(16px,env(safe-area-inset-right))
+               calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); border-top:1px solid var(--line); }
   .rv-actions button{ flex:1; border:none; border-radius:12px; padding:13px; font-size:14.5px; font-weight:600; cursor:pointer; }
   .rv-actions .primary{ background:var(--accent); color:#fff; }
   .rv-actions .ghost{ background:var(--side); color:var(--text); border:1px solid var(--line); }
@@ -162,21 +194,25 @@
 
   /* ===== 로그인 게이트(카카오) ===== */
   .login-view{ position:fixed; inset:0; z-index:100; background:var(--bg); display:flex;
-               align-items:center; justify-content:center; padding:24px; }
-  .login-card{ width:100%; max-width:340px; text-align:center; }
+               align-items:flex-start; justify-content:center; overflow-y:auto; overscroll-behavior:contain;
+               padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right))
+                       max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left)); }
+  .login-card{ position:relative; width:100%; max-width:340px; text-align:center; margin:auto 0; }
+  .login-theme{ position:absolute; right:0; top:0; display:flex; justify-content:flex-end; }
+  .theme-btn{ min-height:44px; border:1px solid var(--line); border-radius:999px; background:var(--panel); color:var(--text);
+              padding:8px 12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+              font-size:12.5px; font-weight:600; }
+  .theme-btn:hover{ background:var(--side); }
   .login-logo{ font-size:26px; font-weight:700; letter-spacing:-.5px; color:var(--accent); margin-bottom:10px; }
   .login-sub{ font-size:14px; color:var(--sub); line-height:1.65; margin-bottom:28px; }
   .kakao-btn{ width:100%; border:none; border-radius:12px; background:#FEE500; color:#191600;
               font-size:15.5px; font-weight:700; padding:14px; cursor:pointer; display:flex;
               align-items:center; justify-content:center; gap:8px; font-family:inherit; }
   .kakao-btn:hover{ filter:brightness(.97); }
-  .demo-entry{ width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--text);
-               font-size:14px; font-weight:700; padding:12px; cursor:pointer; font-family:inherit; margin-top:9px; }
-  .demo-entry:hover{ background:var(--side); }
   .login-foot{ font-size:11.5px; color:var(--muted); margin-top:16px; line-height:1.6; }
   .auth-tabs{ display:flex; gap:6px; margin:6px 0 16px; }
   .auth-tab{ flex:1; border:none; background:var(--side); color:var(--sub); border-radius:10px; padding:10px;
-             font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
+             min-height:44px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
   .auth-tab.active{ background:var(--accent); color:#fff; }
   .auth-input{ width:100%; border:1px solid var(--line); border-radius:11px; padding:12px 14px; font-size:15px;
                font-family:inherit; color:var(--text); background:#fff; outline:none; margin-bottom:9px; }
@@ -201,6 +237,12 @@
   .consent-title{ font-size:16px; font-weight:700; margin-bottom:12px; }
   .consent-body{ font-size:13.5px; color:var(--text); line-height:1.75; text-align:left;
                  background:#f0f7f4; border:1px solid #cfe7dd; border-radius:14px; padding:14px 16px; margin-bottom:20px; }
+  .consent-body>p{ margin-bottom:12px; }
+  .consent-list{ list-style:none; display:grid; gap:9px; }
+  .consent-list li{ position:relative; padding-left:18px; color:var(--sub); }
+  .consent-list li::before{ content:"•"; position:absolute; left:3px; color:var(--accent); font-weight:800; }
+  .consent-list strong{ color:var(--text); }
+  .consent-safety{ margin-top:13px; padding-top:11px; border-top:1px solid #cfe7dd; color:var(--sub); font-size:12.5px; }
 
   /* ===== 설정 화면(작업순서 7) — 폼 요소 ===== */
   .set-sectitle{ font-size:12px; color:var(--muted); font-weight:700; letter-spacing:.3px; margin:6px 0 10px; }
@@ -211,13 +253,53 @@
   .set-row input:focus, .set-row textarea:focus{ border-color:var(--accent); }
   .set-row .help{ font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.5; }
   .set-toggle{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line); }
-  .set-toggle .t-lbl{ font-size:14.5px; }
+  .set-toggle .t-lbl{ font-size:14.5px; min-width:0; }
   .set-switch{ flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 14px;
                font-size:12.5px; color:var(--accent); cursor:pointer; }
   .set-switch.off{ color:var(--muted); }
   .set-linkbtn{ width:100%; text-align:left; border:1px solid var(--line); background:#fff; border-radius:11px;
                 padding:13px; font-size:14.5px; color:var(--text); cursor:pointer; }
   .set-linkbtn:hover{ background:#0000000a; }
+
+  :root[data-theme="dark"] .hdr,
+  :root[data-theme="dark"] .composer,
+  :root[data-theme="dark"] .report-view,
+  :root[data-theme="dark"] .login-view{background:var(--bg)}
+  :root[data-theme="dark"] .composer .field,
+  :root[data-theme="dark"] .d-search,
+  :root[data-theme="dark"] .auth-input,
+  :root[data-theme="dark"] .set-row input,
+  :root[data-theme="dark"] .set-row textarea,
+  :root[data-theme="dark"] .share-btn,
+  :root[data-theme="dark"] .set-switch,
+  :root[data-theme="dark"] .set-linkbtn{background:#111a17;color:var(--text)}
+  :root[data-theme="dark"] .notice .card{background:#153128;border-color:#295347;color:#bde7d8}
+  :root[data-theme="dark"] .crisis,
+  :root[data-theme="dark"] .triage{background:#321d1c;border-color:#72413e}
+  :root[data-theme="dark"] .crisis .c-line{background:#1b1716;border-color:#5e3936;color:var(--text)}
+  :root[data-theme="dark"] .crisis a.c-line:hover{background:#271a18}
+  :root[data-theme="dark"] .crisis .c-title,
+  :root[data-theme="dark"] .triage .h{color:#ff968f}
+  :root[data-theme="dark"] .crisis .c-sub,
+  :root[data-theme="dark"] .triage .b,
+  :root[data-theme="dark"] .triage .ev{color:#e3aaa6}
+  :root[data-theme="dark"] .sec{background:#101815}
+  :root[data-theme="dark"] .rv-note,
+  :root[data-theme="dark"] .consent-body{background:#15251f;border-color:#2f4e43}
+  :root[data-theme="dark"] .consent-safety{border-color:#2f4e43}
+  :root[data-theme="dark"] .kakao-btn{color:#191600}
+  :root[data-theme="dark"] .auth-tab{background:var(--side);color:var(--text)}
+  :root[data-theme="dark"] .auth-tab.active,
+  :root[data-theme="dark"] .auth-submit{background:var(--accent);color:#07130f}
+  :root[data-theme="dark"] .rv-actions .ghost{background:var(--side);color:var(--text)}
+  :root[data-theme="dark"] .rbar{background:#34413c}
+  :root[data-theme="dark"] .scrim{background:rgba(0,0,0,.56)}
+  :root[data-theme="dark"] .a-item:hover,
+  :root[data-theme="dark"] .d-item:hover,
+  :root[data-theme="dark"] .conv:hover,
+  :root[data-theme="dark"] .iconbtn:hover,
+  :root[data-theme="dark"] .set-linkbtn:hover{background:#ffffff0d}
+  .theme-menu-item{ width:100%; border:0; background:transparent; color:var(--text); text-align:left; font-family:inherit; }
 
   /* 데스크탑(넓은 화면): 사이드바를 고정 노출하고 콘텐츠를 옆으로 민다(GPT 스타일).
      햄버거는 접기/펼치기 토글. 좁아지면 자동으로 위의 오버레이 드로어로 전환. */
@@ -230,8 +312,40 @@
     body.nav-collapsed .hdr{ left:0; }
     body.nav-collapsed .main{ left:0; }
   }
+  @media(max-width:899px){
+    .iconbtn,.send{ width:44px; height:44px; }
+    .hdr>.side-r .avatar{ width:44px; height:44px; }
+    .d-item,.conv,.a-item,.rv-bar .txtbtn,.share-btn,.set-switch{ min-height:44px; }
+    .auth-eye{ width:44px; right:2px; }
+    .auth-input,.d-search,.set-row input{ min-height:44px; }
+    .composer textarea,.auth-input,.d-search,.set-row input,.set-row textarea{ font-size:16px; }
+  }
+  @media(max-width:480px){
+    .login-theme .theme-btn{ width:44px; padding:0; }
+    .login-theme [data-theme-label]{ display:none; }
+    .chat-inner,.notice,.rv-inner{ padding-left:max(12px,env(safe-area-inset-left));
+                                  padding-right:max(12px,env(safe-area-inset-right)); }
+    .crisis-wrap{ padding-left:38px; }
+    .crisis{ max-width:calc(100% - 2px); }
+    .crisis .c-line{ align-items:flex-start; flex-direction:column; gap:2px; }
+    .sec .top,.set-toggle{ gap:10px; }
+    .sec .lbl,.set-toggle .t-lbl{ overflow-wrap:anywhere; }
+    .rv-actions button{ min-height:46px; padding-left:8px; padding-right:8px; }
+  }
+  @media(max-height:650px){
+    .login-view{ padding-top:10px; padding-bottom:10px; }
+    .login-logo{ margin-bottom:6px; }
+    .login-sub{ margin-bottom:16px; }
+    .auth-divider{ margin:10px 0; }
+    .login-foot{ margin-top:10px; }
+    .login-doctor{ margin-top:14px; }
+  }
+  @media(max-height:420px) and (orientation:landscape){
+    .composer{ padding-top:6px; padding-bottom:calc(7px + env(safe-area-inset-bottom)); }
+    .hint{ display:none; }
+  }
 </style>
-<!-- Supabase (선택 레이어). SUPABASE_URL 비면 미사용 → 기존 localStorage/메모리로 폴백. -->
+<!-- Supabase 인증·저장 레이어. 로그인 세션이 있어야 환자 채팅에 진입할 수 있다. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -239,6 +353,11 @@
 <!-- 로그인 게이트 (세션 없으면 이 화면만, 채팅은 숨김). ?demo=1 이면 건너뜀. -->
 <div class="login-view" id="loginView">
   <div class="login-card">
+    <div class="login-theme">
+      <button class="theme-btn" type="button" onclick="toggleTheme()" data-theme-button>
+        <span data-theme-icon aria-hidden="true">☾</span><span data-theme-label>다크 모드</span>
+      </button>
+    </div>
     <div class="login-logo">마음기록</div>
     <div class="login-sub">평소처럼 편하게 얘기하면,<br>진료에 도움되도록 정리해 드려요.</div>
 
@@ -261,9 +380,8 @@
 
     <div class="auth-divider"><span>또는</span></div>
     <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 계속하기</button>
-    <button class="demo-entry" onclick="startDemoFallback()">로그인 없이 가상 데모 둘러보기</button>
 
-    <div class="login-foot">기록은 안전하게 저장돼요 (데모 — 가상 환자)</div>
+    <div class="login-foot">대화와 기록을 보호하기 위해 로그인 후 이용할 수 있어요.</div>
     <a class="login-doctor" href="doctor.html">혹시 의사이신가요? ›</a>
   </div>
 </div>
@@ -271,10 +389,24 @@
 <!-- 가입 동의 화면 (가입 시 1회. 동의해야 채팅 진입. 이후 평소엔 안 뜸). -->
 <div class="login-view" id="consentView" style="display:none">
   <div class="login-card">
+    <div class="login-theme">
+      <button class="theme-btn" type="button" onclick="toggleTheme()" data-theme-button>
+        <span data-theme-icon aria-hidden="true">☾</span><span data-theme-label>다크 모드</span>
+      </button>
+    </div>
     <div class="login-logo">마음기록</div>
-    <div class="consent-title">시작하기 전에</div>
-    <div class="consent-body">안녕하세요! 저는 AI예요(의사·치료사가 아니에요). 편하게 일상 얘기하듯 쓰면, 진료에 도움되도록 정리해 선생님께만 전해드려요. 무엇을 전할지는 직접 고를 수 있어요. 단, 위험한 상황이 감지되면 안전을 위해 선생님께 알림이 갈 수 있어요.</div>
-    <button class="kakao-btn" style="background:var(--accent);color:#fff" onclick="agreeConsent()">동의하고 시작하기</button>
+    <div class="consent-title">이용 전 안내 및 동의</div>
+    <div class="consent-body">
+      <p>마음기록은 일상 대화를 정리하여 진료 준비를 돕는 <strong>AI 기록 보조 서비스</strong>입니다.</p>
+      <ul class="consent-list">
+        <li><strong>의료행위가 아닙니다.</strong> 진단·치료·처방 또는 의료진의 판단을 대신하지 않습니다.</li>
+        <li><strong>대화 내용을 구조화합니다.</strong> 수면, 복약, 기분, 스트레스 등 진료에 참고할 신호를 요약합니다.</li>
+        <li><strong>공유 범위를 직접 선택할 수 있습니다.</strong> 다만 자해·자살과 관련된 안전 신호는 보호를 위해 항상 리포트에 포함될 수 있습니다.</li>
+        <li><strong>실시간 응급 모니터링 서비스가 아닙니다.</strong> 즉각적인 도움이 필요하면 112·119 또는 자살예방 상담전화 109를 이용해 주세요.</li>
+      </ul>
+      <div class="consent-safety">아래 버튼을 누르면 위 내용을 확인하고 서비스 이용에 동의한 것으로 처리됩니다.</div>
+    </div>
+    <button class="kakao-btn" style="background:var(--accent);color:#fff" onclick="agreeConsent()">내용을 확인했으며 동의합니다</button>
   </div>
 </div>
 
@@ -303,7 +435,7 @@
       </div>
       <button class="send" id="sendBtn" onclick="sendMsg()" disabled aria-label="전송">↑</button>
     </div>
-    <div class="hint">마음기록은 진단·치료 도구가 아니라 대화를 정리해 전달하는 도구예요. (데모 — 가상 데이터)</div>
+    <div class="hint">AI는 실수할 수 있어요. 의료 판단이나 긴급 대응을 대신하지 않습니다.</div>
   </div>
 </div>
 
@@ -322,11 +454,14 @@
 <div class="acct" id="acct">
   <div class="head">
     <span class="avatar" style="cursor:default" id="acctAva">나</span>
-    <div><div class="nm" id="acctName">게스트 (데모)</div><div class="em" id="acctEmail">로그인 전</div></div>
+    <div><div class="nm" id="acctName">로그인 필요</div><div class="em" id="acctEmail">대화를 시작하려면 로그인해 주세요</div></div>
   </div>
   <div class="a-item" onclick="openReport()"><span class="ic">🗂</span> 리포트 기록 보기</div>
   <div class="a-item" onclick="openReport()"><span class="ic">⬇</span> 내보내기</div>
   <div class="a-item" onclick="openSettings()"><span class="ic">⚙</span> 설정</div>
+  <button class="a-item theme-menu-item" type="button" onclick="toggleTheme()" data-theme-button>
+    <span class="ic" data-theme-icon aria-hidden="true">☾</span><span data-theme-label>다크 모드</span>
+  </button>
   <div class="a-item" onclick="logout()"><span class="ic">⎋</span> 로그아웃</div>
 </div>
 
@@ -395,7 +530,7 @@
    ========================================================================= */
 
 /* ===== 재사용: index.html에서 가져온 안전·추출 로직 (변경 없음) ===== */
-const RISK_WORDS = ["죽고 싶","죽고싶","다 끝내","끝내고 싶","사라지고 싶","자해"];
+const RISK_WORDS = ["죽고 싶","죽고싶","다 끝내","끝내고 싶","사라지고 싶","살기 싫","목숨을 끊","자해"];
 
 /* BACKEND_URL 비면 목업 모드. 채우면 Solar(Render 프록시) 사용. 키는 프론트에 절대 안 둠. */
 const BACKEND_URL = "https://mindhub-mvp.onrender.com"; // 비우면 목업 모드. 채우면 Solar(Render 프록시) 사용.
@@ -411,17 +546,29 @@ function warmBackend(){
     .catch(()=>{ backendWarmStarted = false; });
 }
 
-/* ===== Supabase (선택 레이어 — 환자→의사 데이터 전달용) =====
-   비우면 클라우드 저장 끔 → 기존 localStorage/메모리로 폴백(데모 안 깨짐).
+/* ===== Supabase 인증·저장 레이어 — 환자→의사 데이터 전달용 =====
+   로그인 세션이 없거나 설정이 비어 있으면 채팅에 진입하지 않는다.
    anon public key는 공개돼도 되는 키(RLS가 보호) — Solar 키와 성격이 다름. service_role 키는 절대 금지. */
 const SUPABASE_URL  = "https://vhxvqtbemahbcbrbnkcv.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoeHZxdGJlbWFoYmNicmJua2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODEwNDMsImV4cCI6MjA5NjU1NzA0M30.kKowienH_myTszuJuG3HSuIDl9TUM6EBT4ZUV6jqRM0"; // anon public key (공개 가능 — RLS가 보호)
 const sb = (SUPABASE_URL && SUPABASE_ANON && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 
+async function authenticatedHeaders(){
+  if(!sb || !currentPid) return null;
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session?.access_token || session.user?.id !== currentPid) return null;
+    return {
+      "Content-Type":"application/json",
+      "Authorization":`Bearer ${session.access_token}`
+    };
+  }catch(e){ return null; }
+}
+
 /* 환자 식별자와 브라우저 저장 범위.
    데모와 로그인 계정, 서로 다른 로그인 계정의 기록이 같은 브라우저에서 섞이지 않게 분리한다. */
-let currentPid = null;   // 로그인 사용자 id (boot에서 설정). null이면 익명 데모.
+let currentPid = null;   // 로그인 사용자 id (boot에서 설정). null이면 채팅 진입 불가.
 let storageScope = 'demo';
 function scopedKeyFor(base, scope){ return `${base}_${scope}`; }
 function scopedKey(base){ return scopedKeyFor(base, storageScope); }
@@ -509,11 +656,13 @@ function shouldUseSolarExtraction(text, mock){
 async function getSignals(text){
   const mock = extractSignals(text);
   if(!currentPid || !BACKEND_URL || !shouldUseSolarExtraction(text, mock)) return mock;
+  const headers = await authenticatedHeaders();
+  if(!headers) return mock;
   const ctrl = new AbortController();
   const timer = setTimeout(()=>ctrl.abort(), EXTRACT_TIMEOUT_MS);
   try{
     const r = await fetch(BACKEND_URL + "/extract", {
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method:"POST", headers,
       body: JSON.stringify({ text }), signal: ctrl.signal
     });
     if(!r.ok) throw new Error("backend");
@@ -814,7 +963,7 @@ function addRow(who, html, opts){
   const row = document.createElement('div');
   row.className = 'row ' + who;
   if(opts && opts.id) row.id = opts.id;
-  row.innerHTML = (who==='ai' ? '<div class="ava">AI</div>' : '') + '<div class="bubble">'+html+'</div>';
+  row.innerHTML = (who==='ai' ? '<div class="ava" aria-label="마음기록 AI">✦</div>' : '') + '<div class="bubble">'+html+'</div>';
   inner.appendChild(row);
   scrollBottom();
   return row;
@@ -836,10 +985,10 @@ function addCrisisCard(){
     : `<div class="c-line c-hosp">담당 병원 연락처 <span>설정에서 등록하면 표시돼요</span></div>`;
   wrap.innerHTML =
     '<div class="crisis">' +
-      '<div class="c-title">혼자 견디지 않아도 돼요</div>' +
-      '<div class="c-sub">지금 많이 힘들다면, 24시간 곁에 있어 줄 곳이 있어요. 언제든 연락해도 괜찮아요.</div>' +
+      '<div class="c-title">지금 바로 연결할 수 있어요</div>' +
+      '<div class="c-sub">당장 위험하면 112·119에 연락하고, 가능하면 혼자 있지 말아 주세요.</div>' +
       '<a class="c-line" href="tel:109"><b>자살예방 상담전화 109</b><span>24시간 · 무료</span></a>' +
-      '<a class="c-line" href="tel:15770199"><b>정신건강 위기상담 1577-0199</b><span>24시간</span></a>' +
+      '<a class="c-line" href="tel:119"><b>긴급 구조 119</b><span>즉각적 위험</span></a>' +
       hosp +
     '</div>';
   inner.appendChild(wrap);
@@ -851,7 +1000,26 @@ function addCrisisCard(){
 function mockReply(risky, text){
   text = (text || '').trim();
   // 위험 신호 시(폴백이어도): 일반 의견보다 현재 안전 확인을 우선하고 아래 위기 카드로 연결.
-  if(risky) return "그 말이 나올 만큼 많이 버거웠구나. 지금 혼자 있어?";
+  if(risky) return "지금은 안전부터 확인할게. 혼자 있어? 그리고 당장 스스로를 해칠 생각이나 준비한 게 있어?";
+  const recentRisk = logs.slice(-7).some(m => m.role==='user' && isRisk(m.text));
+  if(recentRisk && /힘들|괴롭|우울|무기력|아무것도|하기\s*싫|사람\s*만나기\s*싫|혼자|외롭|잠|못\s*자|불안|버티/.test(text)){
+    return "그 상태가 계속되는 건 그냥 넘기기 어려워. 아까 물은 것부터 확인할게—지금 혼자고, 당장 스스로를 해칠 생각이나 준비는 없어?";
+  }
+  if(/^(뭐\s*해|뭐\s*하고\s*있어|뭐하냐|머해)[?？.!~\s]*$/i.test(text)) return "너랑 얘기하고 있지. 넌 뭐 하다 왔어?";
+  if(/^(배고파|배고프다|허기져|뭐\s*먹지)[?？.!~\s]*$/i.test(text)) return "그럼 뭐 좀 먹자. 지금 당기는 거 있어?";
+  if(/^(졸려|졸리다|잠\s*와)[?？.!~\s]*$/i.test(text)) return "그럼 지금은 좀 쉬는 게 맞겠다. 아직 해야 할 일이 남았어?";
+  if(/(?:오늘|지금).{0,8}비.{0,4}(?:와|와요|오나|오니|올까|오냐)|비\s*와[?？]*$/i.test(text)) return "어디 기준으로 볼까? 지금 위치는 자동으로 알 수 없어.";
+  if(text.length <= 55 && /힘들|지쳤|지쳐|피곤|속상|서운|우울|불안|짜증|화나|외롭|답답|막막|무서|슬퍼|무기력|아무것도\s*하기\s*싫|사람\s*만나기\s*싫/.test(text)){
+    if(/아무것도\s*하기\s*싫|무기력/.test(text)) return "지금은 뭘 시작할 힘 자체가 거의 없는 것 같네. 오늘 유독 심해진 계기가 있었어?";
+    if(/사람\s*만나기\s*싫/.test(text)) return "지금은 사람을 상대하는 것 자체가 버거운 것 같네. 무슨 일 있었어?";
+    if(/속상|서운/.test(text)) return "그냥 기분이 안 좋은 것보다 뭔가 마음에 걸린 것 같네. 무슨 일이었어?";
+    if(/피곤|지쳤|지쳐/.test(text)) return "오늘 에너지를 꽤 많이 쓴 것 같네. 뭐 때문에 그렇게 지쳤어?";
+    if(/불안|무서/.test(text)) return "뭔가 계속 신경을 붙잡고 있는 것 같네. 뭐가 제일 걸려?";
+    if(/화나|짜증/.test(text)) return "뭔가 선을 넘은 일이 있었던 것 같네. 무슨 일이었어?";
+    if(/외롭/.test(text)) return "오늘은 유난히 혼자 남겨진 느낌인가 보네. 무슨 일이 있었어?";
+    if(/답답|막막/.test(text)) return "어디서부터 풀어야 할지 안 보이는 상태에 가까운 것 같네. 지금 제일 걸리는 게 뭐야?";
+    return "오늘 꽤 빡센 날이었나 보네. 무슨 일 있었어?";
+  }
   if(/제대로.*(하고|하는).*모르|잘하고.*모르/.test(text)){
     return "지금 말만 놓고 보면 아예 손을 놓은 상태라기보다, 여러 일을 동시에 붙잡아서 진도가 잘 안 느껴지는 쪽에 가까워 보여. 다만 바쁜 것과 중요한 일을 진전시키는 건 다르니까, 시간을 많이 쓰는 일이 실제 목표와 연결되는지는 냉정하게 볼 필요가 있어.";
   }
@@ -864,31 +1032,41 @@ function mockReply(risky, text){
   if(/그만둘|포기할|계속해야/.test(text)){
     return "힘들다는 이유만으로 바로 그만둘 필요는 없지만, 이미 들인 시간이 아까워서 계속하는 것도 좋은 이유는 아니야. 앞으로 얻을 것과 계속 치를 비용을 기준으로 보는 편이 더 맞아.";
   }
-  if(/^(안녕|하이|ㅎㅇ|반가)/.test(text)) return "안녕. 나는 듣기만 하기보다 내가 어떻게 보는지도 솔직히 말해주는 쪽이야.";
+  if(/^(안녕|하이|ㅎㅇ|반가)/.test(text)) return "안녕. 뭐 하다 왔어?";
   if(/발표|프로젝트|과제|마감/.test(text)) return "지금 말만 보면 능력 부족보다 범위가 넓고 우선순위가 섞인 문제가 더 커 보여. 완성 기준을 하나로 줄이고, 처음 보는 사람이 만나게 될 동선부터 끝내는 게 효과가 클 것 같아.";
-  if(/지쳐|피곤|힘들|버거/.test(text)) return "지친 상태에서 계속 밀어붙이는 게 항상 성실한 건 아니야. 지금은 의지 부족이라기보다 회복 없이 오래 버틴 대가가 온 쪽일 수 있어.";
+  if(/지쳐|피곤|힘들|버거/.test(text)) return "지금 말만 보면 단순히 오늘 하루가 고된 것보다, 꽤 오래 버틴 피로가 겹친 쪽일 수도 있어 보여. 어느 순간부터 특히 버거워졌는지가 중요할 것 같아.";
   if(/잠|수면|새벽|밤새|못\s*잤|못\s*자/.test(text)) return "4시간 정도라면 오늘 집중력이나 기분이 흔들리는 게 이상한 반응은 아니야. 오늘의 자기평가를 평소 실력에 대한 결론처럼 받아들이지는 않는 게 좋겠어.";
   if(/약.*(까먹|깜빡|빼먹|안\s*먹|걸렀)/.test(text)) return "한 번 놓친 것보다 이런 일이 반복되는지가 더 중요해 보여. 빠뜨린 약을 어떻게 보완할지는 약마다 다르니 임의로 정하지 말고 처방 안내나 의료진에게 확인하는 게 안전해.";
-  if(/치킨|피자|밥|먹었|카페|커피/.test(text)) return "그건 꽤 괜찮은 선택이었을 것 같은데. 적어도 오늘 한 끼는 챙긴 셈이네.";
+  if(/치킨|피자|밥|먹었|카페|커피/.test(text)) return "오, 그건 괜찮다. 맛있었어?";
   if(/에러|오류|코드/.test(text)) return "원인 후보를 늘어놓기보다 에러 문구와 문제가 난 코드 위치부터 보는 게 빠르겠어. 그 두 가지가 있으면 가장 유력한 원인부터 짚을 수 있어.";
-  if(/[?？]|어떻게|방법|설명|알려|도와/.test(text)) return "지금 정보만으로 답을 정하면 추측이 너무 커져. 판단에 필요한 핵심 상황이나 원하는 결과를 한두 줄만 더 알려주면 결론부터 말해볼게.";
-  return "지금 말만 놓고 보면 그 일이 단순히 지나간 얘기라기보다, 아직 네 안에서 판단이 끝나지 않은 문제처럼 들려. 괜히 신경 쓰는 거라고 넘기기보다는 왜 계속 마음에 남는지 볼 가치는 있어.";
+  if(/어떻게|방법|설명|알려줘|도와줘/.test(text)) return "지금 정보만으로는 추측이 커. 원하는 결과나 막힌 부분을 한 줄만 더 알려줘.";
+  return text.length < 18 ? "그 얘기 조금만 더 해봐." : "지금 말에서 제일 중요한 부분이 뭔지 조금 더 듣고 싶어.";
 }
 
-/* /chat 백엔드(Solar)로 범용 답변. 제한 시간 초과·실패 시 mockReply 폴백(데모 안 깨짐). */
+/* /chat 백엔드(Solar)로 범용 답변. 로그인 상태에서 제한 시간 초과·실패 시 mockReply로 폴백. */
 async function chatReply(risky){
   const lastUser = [...logs].reverse().find(m => m.role==='user');
   const lastText = lastUser ? lastUser.text : '';
-  if(!currentPid || !BACKEND_URL) return mockReply(risky, lastText);
+  if(!currentPid) return "대화를 이어가려면 다시 로그인해 주세요.";
+  if(!BACKEND_URL) return mockReply(risky, lastText);
+  const headers = await authenticatedHeaders();
+  if(!headers){
+    setTimeout(boot, 0);
+    return "로그인 세션이 만료된 것 같아. 다시 로그인한 뒤 이어서 이야기해줘.";
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(()=>ctrl.abort(), CHAT_TIMEOUT_MS);
   try{
     // logs의 'ai' → 'assistant'로 변환해 최근 대화를 그대로 전달.
     const messages = logs.map(m => ({ role: m.role==='ai' ? 'assistant' : 'user', content: m.text }));
     const r = await fetch(BACKEND_URL + "/chat", {
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method:"POST", headers,
       body: JSON.stringify({ messages }), signal: ctrl.signal
     });
+    if(r.status===401){
+      setTimeout(boot, 0);
+      return "로그인 세션이 만료된 것 같아. 다시 로그인한 뒤 이어서 이야기해줘.";
+    }
     if(!r.ok) throw new Error("backend");
     const data = await r.json();
     const reply = (data && data.reply || "").trim();
@@ -901,6 +1079,13 @@ let sending = false;
 let sendSeq = 0;
 async function sendMsg(){
   if(sending) return;
+  if(!currentPid){
+    closeAll();
+    hideConsent();
+    showLogin();
+    authMsg('대화를 시작하려면 로그인해 주세요.');
+    return;
+  }
   const inp = document.getElementById('msgInput');
   const text = inp.value.trim();
   if(!text) return;
@@ -968,8 +1153,34 @@ function restoreDraft(){
 function onMessageInput(el){ autoGrow(el); saveDraft(el.value); toggleSend(); }
 function toggleSend(){
   const i=document.getElementById('msgInput');
-  document.getElementById('sendBtn').disabled = sending || !i.value.trim();
+  document.getElementById('sendBtn').disabled = !currentPid || sending || !i.value.trim();
 }
+
+function currentTheme(){
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+function syncThemeUI(){
+  const dark = currentTheme() === 'dark';
+  document.querySelectorAll('[data-theme-icon]').forEach(el => el.textContent = dark ? '☀' : '☾');
+  document.querySelectorAll('[data-theme-label]').forEach(el => el.textContent = dark ? '일반 모드' : '다크 모드');
+  document.querySelectorAll('[data-theme-button]').forEach(el => {
+    const label = dark ? '일반 모드로 전환' : '다크 모드로 전환';
+    el.setAttribute('aria-label', label);
+    el.setAttribute('title', label);
+  });
+}
+function setTheme(theme, persist){
+  document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+  if(persist !== false){
+    try { localStorage.setItem('mindhub_theme', currentTheme()); } catch(e) {}
+  }
+  syncThemeUI();
+}
+function toggleTheme(){ setTheme(currentTheme() === 'dark' ? 'light' : 'dark'); }
+window.addEventListener('storage', e => {
+  if(e.key === 'mindhub_theme' && (e.newValue === 'light' || e.newValue === 'dark')) setTheme(e.newValue, false);
+});
+syncThemeUI();
 
 /* ===== 사이드 / 계정 메뉴 ===== */
 function scrim(on){ document.getElementById('scrim').classList.toggle('on', on); }
@@ -1096,7 +1307,7 @@ function loadConv(id){
   closeAll();
 }
 
-/* 계정/데모 저장 영역 전환. 화면·전역 상태를 함께 비워 이전 사용자의 기록이 보이지 않게 한다. */
+/* 계정/로그아웃 저장 영역 전환. 화면·전역 상태를 함께 비워 이전 사용자의 기록이 보이지 않게 한다. */
 function activateScope(pid){
   const nextScope = pid ? `user_${pid}` : 'demo';
   if(nextScope===storageScope){
@@ -1158,9 +1369,6 @@ function toast(msg){
 }
 
 /* ===== 로그인 게이트 + 역할 분기 (카카오) ===== */
-const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
-let manualDemo = false;
-
 function showLogin(){ document.getElementById('loginView').style.display='flex'; }
 function hideLogin(){ document.getElementById('loginView').style.display='none'; }
 
@@ -1172,8 +1380,7 @@ function setAccount(name, sub){
 }
 
 function kakaoLogin(){
-  if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
-  manualDemo = false;
+  if(!sb){ authMsg('현재 로그인 연결을 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'); return; }
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
 }
 
@@ -1222,8 +1429,7 @@ function onPwInput(){
     : '8자 이상 · 대문자·숫자·특수문자 중 2가지 이상';
 }
 async function emailAuth(){
-  if(!sb){ toast('로그인 설정이 없어 데모 모드로 진행합니다'); return startDemoFallback(); }
-  manualDemo = false;
+  if(!sb){ authMsg('현재 로그인 연결을 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'); return; }
   const email = document.getElementById('authEmail').value.trim();
   const pw    = document.getElementById('authPw').value;
   if(!emailValid(email)){ authMsg('올바른 이메일 형식이 아니에요 (예: name@example.com)'); return; }
@@ -1243,7 +1449,7 @@ async function emailAuth(){
       const { data, error } = await sb.auth.signUp({ email, password: pw });
       if(error) throw error;
       if(!data.session){   // 이메일 확인이 켜져 있으면 세션이 안 생김
-        authMsg('확인 메일을 보냈어요. 메일 인증 후 로그인해 주세요. (데모는 Supabase에서 "Confirm email" 끄기 권장)', true);
+        authMsg('확인 메일을 보냈어요. 메일 인증을 마친 뒤 로그인해 주세요.', true);
         return;
       }
       // 세션 생기면 onAuthStateChange → boot()
@@ -1255,12 +1461,11 @@ async function emailAuth(){
 async function logout(){
   closeAll();
   persistCurrent();
-  manualDemo = false;
   try{
     if(sb) await sb.auth.signOut();   // onAuthStateChange → boot() → 로그인 화면
   }catch(e){ console.warn('logout failed', e); }
   activateScope(null);
-  setAccount('게스트 (데모)', '로그인 전');
+  setAccount('로그인 필요', '대화를 시작하려면 로그인해 주세요');
   hideConsent();
   showLogin();
 }
@@ -1289,18 +1494,9 @@ function initPatientApp(){
   restoreDraft();
   restoreActiveConversation();
   if(!logs.length && !document.getElementById('chatInner').children.length){
-    addRow('ai', DEMO_MODE || !currentPid
-      ? '평가용 가상 데모예요. 질문만 되묻기보다 내가 어떻게 이해했고 판단하는지 먼저 말해볼게요. 일상 이야기에 담긴 진료 리포트용 신호는 뒤에서 조용히 정리돼요.'
-      : '아무 얘기나 해도 돼. 듣기만 하지는 않고, 내가 어떻게 이해했고 판단하는지도 솔직히 말해볼게.');
+    addRow('ai', '왔네. 무슨 얘기든 해도 돼—내 생각도 솔직히 말할게.');
   }
   toggleSend();
-}
-/* 평가/비상 우회: 로컬 익명 모드. 가입 절차 없이 즉시 가상 데모로 진입한다. */
-function startDemoFallback(){
-  manualDemo = true;
-  activateScope(null);
-  setAccount('게스트 (데모)', '이 기기에만 저장');
-  initPatientApp();
 }
 
 let booting = false;
@@ -1309,11 +1505,18 @@ async function boot(){
   booting = true;
   warmBackend();
   try{
-    if(DEMO_MODE || manualDemo || !sb){ startDemoFallback(); return; }
+    if(!sb){
+      activateScope(null);
+      setAccount('로그인 필요', '로그인 연결을 사용할 수 없음');
+      hideConsent();
+      showLogin();
+      authMsg('현재 로그인 연결을 사용할 수 없어요. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){
       activateScope(null);
-      setAccount('게스트 (데모)', '로그인 전');
+      setAccount('로그인 필요', '대화를 시작하려면 로그인해 주세요');
       hideConsent();
       showLogin();
       return;
@@ -1333,9 +1536,10 @@ async function boot(){
     enterChat();
   }catch(e){
     console.warn('boot 실패', e);
+    activateScope(null);
     hideConsent();
     showLogin();
-    authMsg('서버 연결을 확인하지 못했어요. 저장된 기록은 이 기기에 남아 있으며, 다시 로그인하거나 가상 데모를 이용할 수 있어요.');
+    authMsg('로그인 상태를 확인하지 못했어요. 연결을 확인한 뒤 다시 로그인해 주세요.');
   }finally{
     booting = false;
   }
