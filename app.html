@@ -53,10 +53,24 @@
 
   /* ===== 채팅 영역 ===== */
   .main{ position:absolute; top:var(--hdr); bottom:0; left:0; right:0; display:flex; flex-direction:column; transition:left .22s ease; }
-  .chat{ flex:1; overflow-y:auto; padding:18px 0 8px; }
+  .chat{ position:relative; flex:1; overflow-y:auto; padding:18px 0 8px; }
   .chat-inner{ max-width:var(--maxw); margin:0 auto;
                padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));
                display:flex; flex-direction:column; gap:14px; }
+  .chat-empty{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    padding:24px 24px 10vh; pointer-events:none; transition:opacity .18s,transform .18s;
+  }
+  .chat-empty.hidden{ opacity:0; transform:translateY(8px); visibility:hidden; }
+  .empty-content{ max-width:520px; text-align:center; }
+  .empty-mark{
+    width:46px; height:46px; margin:0 auto 18px; border-radius:16px;
+    display:grid; place-items:center; color:#fff; font-size:21px;
+    background:linear-gradient(145deg,var(--accent),#5bc9a4);
+    box-shadow:0 12px 30px rgba(29,158,117,.2);
+  }
+  .empty-title{ font-size:clamp(22px,4vw,31px); line-height:1.35; font-weight:500; letter-spacing:-.045em; }
+  .empty-sub{ margin-top:10px; color:var(--muted); font-size:13.5px; }
   .row{ display:flex; gap:10px; align-items:flex-start; min-width:0; }
   .row.me{ justify-content:flex-end; }
   .bubble{ max-width:86%; min-width:0; padding:11px 14px; border-radius:16px; font-size:15px; line-height:1.6;
@@ -293,6 +307,7 @@
   :root[data-theme="dark"] .auth-submit{background:var(--accent);color:#07130f}
   :root[data-theme="dark"] .rv-actions .ghost{background:var(--side);color:var(--text)}
   :root[data-theme="dark"] .rbar{background:#34413c}
+  :root[data-theme="dark"] .empty-mark{box-shadow:0 12px 30px rgba(0,0,0,.35)}
   :root[data-theme="dark"] .scrim{background:rgba(0,0,0,.56)}
   :root[data-theme="dark"] .a-item:hover,
   :root[data-theme="dark"] .d-item:hover,
@@ -331,6 +346,10 @@
     .sec .top,.set-toggle{ gap:10px; }
     .sec .lbl,.set-toggle .t-lbl{ overflow-wrap:anywhere; }
     .rv-actions button{ min-height:46px; padding-left:8px; padding-right:8px; }
+    .chat-empty{ padding-left:22px; padding-right:22px; padding-bottom:13vh; }
+    .empty-mark{ width:42px; height:42px; margin-bottom:16px; border-radius:14px; font-size:19px; }
+    .empty-title{ font-size:23px; }
+    .empty-sub{ font-size:13px; }
   }
   @media(max-height:650px){
     .login-view{ padding-top:10px; padding-bottom:10px; }
@@ -425,6 +444,13 @@
 <!-- 메인 채팅 -->
 <div class="main">
   <div class="chat" id="chat">
+    <div class="chat-empty hidden" id="chatEmpty" aria-hidden="true">
+      <div class="empty-content">
+        <div class="empty-mark" aria-hidden="true">✦</div>
+        <div class="empty-title"><span id="emptyGreeting">어떤 이야기부터 해볼까요?</span></div>
+        <div class="empty-sub">짧게 시작해도 괜찮아요.</div>
+      </div>
+    </div>
     <div class="chat-inner" id="chatInner"></div>
   </div>
 
@@ -908,6 +934,19 @@ function showOnboardingAgain(){
 
 /* ===== 채팅 UI ===== */
 let logs = [];
+let currentDisplayName = '';
+
+function updateChatEmptyState(){
+  const empty = document.getElementById('chatEmpty');
+  if(!empty) return;
+  const inputHasText = !!document.getElementById('msgInput')?.value.trim();
+  const visible = !!currentPid && logs.length === 0 && !inputHasText;
+  const name = currentDisplayName.trim().slice(0, 30);
+  const base = conversations?.length ? '다시 이야기해 볼까요' : '어떤 이야기부터 해볼까요';
+  document.getElementById('emptyGreeting').textContent = name ? `${base}, ${name}` : `${base}?`;
+  empty.classList.toggle('hidden', !visible);
+  empty.setAttribute('aria-hidden', visible ? 'false' : 'true');
+}
 
 /* 세션 누적 임상 신호(작업순서 4). 대화 뒤에서 조용히 모아 리포트(작업순서 6)에서 사용.
    화면엔 절대 표시하지 않음 — 환자는 그냥 수다 떨 뿐. */
@@ -959,6 +998,7 @@ async function collectSignals(text, at, conversationId, scopeAtSend, patientAtSe
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function addRow(who, html, opts){
+  document.getElementById('chatEmpty')?.classList.add('hidden');
   const inner = document.getElementById('chatInner');
   const row = document.createElement('div');
   row.className = 'row ' + who;
@@ -1149,8 +1189,9 @@ function restoreDraft(){
   try{ input.value = localStorage.getItem(draftKey()) || ''; }catch(e){ input.value=''; }
   autoGrow(input);
   toggleSend();
+  updateChatEmptyState();
 }
-function onMessageInput(el){ autoGrow(el); saveDraft(el.value); toggleSend(); }
+function onMessageInput(el){ autoGrow(el); saveDraft(el.value); toggleSend(); updateChatEmptyState(); }
 function toggleSend(){
   const i=document.getElementById('msgInput');
   document.getElementById('sendBtn').disabled = !currentPid || sending || !i.value.trim();
@@ -1219,6 +1260,7 @@ function newChat(){
   clearActiveId();
   document.getElementById('chatInner').innerHTML='';
   renderConvs();
+  updateChatEmptyState();
   closeAll(); toast('새 대화를 시작했어요');
 }
 
@@ -1358,6 +1400,7 @@ function rebuildChat(){
       if(lastUserRisky){ addCrisisCard(); lastUserRisky=false; }
     }
   });
+  updateChatEmptyState();
   scrollBottom();
 }
 
@@ -1374,9 +1417,11 @@ function hideLogin(){ document.getElementById('loginView').style.display='none';
 
 /* 계정 메뉴 표시(로그인 사용자 이름). */
 function setAccount(name, sub){
+  currentDisplayName = name && name !== '로그인 필요' ? name : '';
   document.getElementById('acctName').textContent = name;
   document.getElementById('acctEmail').textContent = sub;
   document.getElementById('acctAva').textContent = (name||'나').slice(0,1);
+  updateChatEmptyState();
 }
 
 function kakaoLogin(){
@@ -1493,9 +1538,7 @@ function initPatientApp(){
   renderConvs();
   restoreDraft();
   restoreActiveConversation();
-  if(!logs.length && !document.getElementById('chatInner').children.length){
-    addRow('ai', '왔네. 무슨 얘기든 해도 돼—내 생각도 솔직히 말할게.');
-  }
+  updateChatEmptyState();
   toggleSend();
 }
 
