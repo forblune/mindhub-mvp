@@ -95,10 +95,27 @@
   .crisis .c-line span{ font-size:11.5px; color:var(--muted); flex:none; }
   .crisis .c-hosp{ color:var(--sub); }
 
-  .typing{ font-size:13px; color:var(--muted); }
-  .typing span{ animation:blink 1.2s infinite; }
-  .typing span:nth-child(2){ animation-delay:.2s; } .typing span:nth-child(3){ animation-delay:.4s; }
-  @keyframes blink{ 0%,60%,100%{opacity:.2;} 30%{opacity:1;} }
+  .row.ai.pending .bubble{
+    min-height:34px; padding:7px 5px; display:flex; align-items:center;
+    background:transparent; border-radius:0;
+  }
+  .thinking-orb{
+    position:relative; width:19px; height:19px; border-radius:50%;
+    background:conic-gradient(from 20deg,var(--accent),#8ad9bf 38%,#dce7e2 62%,var(--accent));
+    animation:thinking-spin .9s linear infinite,thinking-breathe 1.8s ease-in-out infinite;
+    box-shadow:0 0 0 4px rgba(29,158,117,.07);
+  }
+  .thinking-orb::after{
+    content:""; position:absolute; inset:4px; border-radius:50%; background:var(--bg);
+  }
+  .row.ai.streaming .bubble::after{
+    content:""; display:inline-block; width:2px; height:1em; margin-left:3px;
+    vertical-align:-.12em; border-radius:2px; background:var(--accent);
+    animation:stream-cursor .75s ease-in-out infinite;
+  }
+  @keyframes thinking-spin{ to{ transform:rotate(360deg); } }
+  @keyframes thinking-breathe{ 0%,100%{opacity:.65} 50%{opacity:1} }
+  @keyframes stream-cursor{ 0%,100%{opacity:.2} 50%{opacity:1} }
 
   /* ===== 입력창 ===== */
   .composer{ border-top:1px solid var(--line); background:var(--bg); padding:10px 0 calc(14px + env(safe-area-inset-bottom)); }
@@ -362,6 +379,9 @@
   @media(max-height:420px) and (orientation:landscape){
     .composer{ padding-top:6px; padding-bottom:calc(7px + env(safe-area-inset-bottom)); }
     .hint{ display:none; }
+  }
+  @media(prefers-reduced-motion:reduce){
+    .thinking-orb,.row.ai.streaming .bubble::after{ animation:none; }
   }
 </style>
 <!-- Supabase 인증·저장 레이어. 로그인 세션이 있어야 환자 채팅에 진입할 수 있다. -->
@@ -1003,12 +1023,47 @@ function addRow(who, html, opts){
   const row = document.createElement('div');
   row.className = 'row ' + who;
   if(opts && opts.id) row.id = opts.id;
+  if(opts && opts.className) row.classList.add(opts.className);
   row.innerHTML = (who==='ai' ? '<div class="ava" aria-label="마음기록 AI">✦</div>' : '') + '<div class="bubble">'+html+'</div>';
   inner.appendChild(row);
   scrollBottom();
   return row;
 }
 function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
+
+function wait(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
+
+async function revealAiReply(row, text){
+  if(!row) return;
+  const bubble = row.querySelector('.bubble');
+  if(!bubble) return;
+  row.classList.remove('pending');
+  row.classList.add('streaming');
+  bubble.textContent = '';
+
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if(reduced || document.hidden){
+    bubble.textContent = text;
+    row.classList.remove('streaming');
+    scrollBottom();
+    return;
+  }
+
+  const chars = Array.from(text);
+  const duration = Math.min(2400, Math.max(480, chars.length * 15));
+  const tickMs = 24;
+  const chunkSize = Math.max(1, Math.ceil(chars.length / Math.max(1, duration / tickMs)));
+  let index = 0;
+  let ticks = 0;
+  while(index < chars.length && row.isConnected){
+    const next = Math.min(chars.length, index + chunkSize);
+    bubble.append(document.createTextNode(chars.slice(index, next).join('')));
+    index = next;
+    if(++ticks % 3 === 0 || index === chars.length) scrollBottom();
+    if(index < chars.length) await wait(tickMs);
+  }
+  row.classList.remove('streaming');
+}
 
 /* ===== 위기 자원(작업순서 5) — 규칙 기반, 항상 동작 ===== */
 /* 위험 판정은 RISK_WORDS(규칙 기반)로 동기 처리 — Solar/네트워크와 무관하게 항상 작동. */
@@ -1143,15 +1198,23 @@ async function sendMsg(){
   // 위험 판정(작업순서 5) — 규칙 기반·동기. 답변 전에 미리 판정해 Solar/네트워크와 무관하게 보장.
   const risky = isRisk(text);
 
-  // 타이핑 표시
+  // 답변 대기 표시 — 작은 회전 점을 보여준 뒤, 답변은 스트리밍처럼 점진적으로 표시한다.
   const typingId = 'typing-' + (++sendSeq);
-  addRow('ai', '<span class="typing"><span>●</span><span>●</span><span>●</span></span>', {id:typingId});
+  addRow(
+    'ai',
+    '<span class="thinking-orb" role="status" aria-label="답변을 생각하고 있어요"></span>',
+    {id:typingId,className:'pending'}
+  );
+  const thinkingStartedAt = Date.now();
 
   // 백그라운드 임상 추출(작업순서 4) — 답변과 병렬로 조용히. await 안 함(지연 0, 비가시).
   collectSignals(text, messageAt, conversationId, scopeAtSend, patientAtSend);
 
   try{
     const reply = await chatReply(risky);
+    const minimumWait = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 80 : 280;
+    const remainingWait = minimumWait - (Date.now() - thinkingStartedAt);
+    if(remainingWait > 0) await wait(remainingWait);
     // 답변 대기 중 로그아웃·계정 전환이 일어나면 현재 화면/계정에 섞지 않는다.
     // 원래 요청을 보낸 계정의 원래 대화에만 조용히 저장한다.
     if(storageScope!==scopeAtSend || activeId!==conversationId){
@@ -1161,7 +1224,15 @@ async function sendMsg(){
       return;
     }
     const node = document.getElementById(typingId);
-    if(node){ node.querySelector('.bubble').innerHTML = escapeHtml(reply); node.removeAttribute('id'); }
+    if(node){
+      await revealAiReply(node, reply);
+      node.removeAttribute('id');
+    }
+    // 글자가 나타나는 도중 로그아웃·계정 전환이 일어난 경우 원래 대화에만 저장한다.
+    if(storageScope!==scopeAtSend || activeId!==conversationId){
+      appendAiReplyToStoredConversation(conversationId, scopeAtSend, reply);
+      return;
+    }
     logs.push({ role:'ai', text:reply });
 
     // 위기 자원 카드는 AI 답변 뒤에 인라인으로(④). 대화는 그대로 이어짐.
