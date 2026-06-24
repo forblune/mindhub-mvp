@@ -68,8 +68,9 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const OPENAI_URL = "https://api.openai.com/v1/responses";
 const OPENAI_TIMEOUT_MS = 12000;
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://vhxvqtbemahbcbrbnkcv.supabase.co";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6InZoeHZxdGJlbWFoYmNicmJua2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODEwNDMsImV4cCI6MjA5NjU1NzA0M30.kKowienH_myTszuJuG3HSuIDl9TUM6EBT4ZUV6jqRM0";
+// Supabase anon 키는 환경변수에서만 읽는다 — 코드에 하드코딩하지 않음
+// (과거 손상된 폴백값이 apikey 검증을 깨뜨려 '세션 만료' 버그를 유발한 이력).
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const AUTH_TIMEOUT_MS = 5000;
 
 function makeRateLimiter({ windowMs, max }){
