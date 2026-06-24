@@ -19,7 +19,7 @@
    - `OPENAI_API_KEY` = (선택, 기관 도입 상담을 GPT로 보강할 때만)
    - `OPENAI_MODEL` = `gpt-5.4-mini` (선택, 비용·지연을 고려한 기본값)
    - `ALLOWED_ORIGINS` = (기본 목록 외 프론트 주소가 있다면 쉼표로 추가)
-5. 배포되면 주소가 나온다 → 예: `https://21team-solar.onrender.com`
+5. 배포되면 주소가 나온다 → 예: `https://mindhub-mvp.onrender.com`
 
 ## 확인
 - 브라우저로 `https://<주소>/` 열어서 **`ok`** 가 보이면 살아있는 것.
@@ -35,7 +35,7 @@
 
 ## 프론트 연결
 - `app.html` 상단의 `const BACKEND_URL = "";` 에 위 Render 주소를 넣는다.
-  → 예: `const BACKEND_URL = "https://21team-solar.onrender.com";`
+  → 예: `const BACKEND_URL = "https://mindhub-mvp.onrender.com";`
 - 비워두면 로그인 사용자에게 로컬 폴백 답변을 사용하고, 주소를 넣으면 **Solar 실제 대화·추출**을 사용한다.
 - Solar 호출이 실패해도 로그인 상태 안에서 로컬 폴백으로 전환된다.
 

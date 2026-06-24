@@ -1,7 +1,7 @@
 {
-  "name": "21team-solar-proxy",
+  "name": "mindhub-solar-proxy",
   "version": "1.0.0",
-  "description": "Solar(Upstage) API proxy for 마음기록 MVP",
+  "description": "Solar(Upstage) API proxy for MindHub",
   "main": "server.js",
   "type": "commonjs",
   "engines": { "node": ">=18" },
