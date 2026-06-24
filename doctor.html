@@ -208,7 +208,7 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sb = (SUPABASE_URL && SUPABASE_ANON && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
-const DEMO_PATIENT = { id:'demo-patient', display_name:'김하늘 (가상)' };
+const DEMO_PATIENT = { id:'demo-patient', display_name:'강하늘 (가상)' };
 const DEMO_ENTRIES = [
   { at:'2026-06-16T09:00:00+09:00', text:null, sig:{ sleep_h:6, med_taken:true,  mood:5, stressor:null, red_flag:false, evidence:null } },
   { at:'2026-06-17T09:00:00+09:00', text:null, sig:{ sleep_h:4, med_taken:true,  mood:4, stressor:'직장 스트레스', red_flag:false, evidence:null } },
@@ -378,7 +378,7 @@ function startDoctorDemo(){
   setView('dash');
   document.getElementById('plist').innerHTML =
     `<div class="pitem active" data-pid="${DEMO_PATIENT.id}">
-       <span class="pav">김하</span><span>${DEMO_PATIENT.display_name}</span><span class="red">●</span></div>`;
+       <span class="pav">강하</span><span>${DEMO_PATIENT.display_name}</span><span class="red">●</span></div>`;
   renderDoctorReport(DEMO_ENTRIES, DEMO_PATIENT.display_name, true);
 }
 
