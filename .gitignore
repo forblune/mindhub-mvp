@@ -4,3 +4,7 @@ node_modules/
 .DS_Store
 *.log
 npm-debug.log*
+
+# 발표 슬라이드·PDF는 GitHub Release 또는 Drive로 관리 (repo에는 .md 대본만)
+*.pptx
+*.pdf
