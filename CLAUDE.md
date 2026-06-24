@@ -9,23 +9,29 @@
 
 ## 절대 지킬 설계 원칙 (Non-negotiable)
 1. **진단·치료를 하지 않는다.** 의료법상 "기록·요약·전달" 도구. 진단명 단정·약물 변경 지시 금지. → 이 선을 넘는 코드/문구는 만들지 말 것 (의료기기 규제 회피).
-2. **위험 감지는 규칙 기반(프론트, `index.html`의 RISK_WORDS)으로 항상 동작한다.** LLM/API에 의존하지 않는다. 안전 기능은 API가 죽어도 작동해야 한다.
-3. **Solar(Upstage) API 키는 절대 프론트에 넣지 않는다.** `backend/`(Render) 프록시가 대신 호출하고, 키는 Render 환경변수(`UPSTAGE_API_KEY`)에만 둔다.
-4. **데모는 목업 폴백으로 절대 안 깨진다.** `index.html`의 `BACKEND_URL`이 비었거나 호출 실패 시 규칙 기반 목업으로 동작. 이 폴백을 제거하지 말 것.
+2. **위험 감지는 규칙 기반(프론트, `app.html`의 `RISK_WORDS`)으로 항상 동작한다.** LLM/API에 의존하지 않는다. 안전 기능은 API가 죽어도 작동해야 한다.
+3. **Solar(Upstage)·OpenAI API 키는 절대 프론트에 넣지 않는다.** `backend/server.js`(Render 프록시)가 대신 호출하고, 키는 Render 환경변수(`UPSTAGE_API_KEY`, 선택 `OPENAI_API_KEY`)에만 둔다.
+4. **데모와 대화는 폴백으로 절대 안 깨진다.** `index.html`의 무로그인 데모는 AI POST·DB 저장 없이 브라우저에서만 동작하고, `app.html`은 Solar 호출 실패 시 로그인 상태 안에서 로컬 폴백 답변과 규칙 기반 추출을 사용한다. 이 폴백을 제거하지 말 것.
 5. **의사 추가 업무 0.** 의사는 기록하지 않고 소비만. 리포트는 예외(Red Flag)만 부각, 진료 전 10초 안에 파악되게.
 6. 위험 신호 시: 섣부른 위로로 덮지 말고, 따뜻하게 위기 자원(자살예방상담 109) 안내 + 의사에게 Red Flag.
 
 ## 현재 상태
-- `index.html` — 프론트(환자 채팅 + 의사 대시보드). 단일 파일, 목업 모드로 동작 중.
-- `backend/server.js`, `backend/package.json` — Render용 Solar 프록시 (배포 전).
-- GitHub: `forblune/mindhub-mvp`. GitHub Pages 배포함(빌드 중일 수 있음).
-- 다음 할 일은 `배포_실행순서.md` 참고 (A~H 단계).
+- `index.html` — 제품 소개, 무로그인 인터랙티브 데모, 기관용 AI 도입 상담 진입점. 루트 페이지이며 GitHub Pages/커스텀 도메인에서 제공.
+- `app.html` — 로그인 필수 환자 채팅 앱. Supabase 세션을 확인하고 Render `/chat`, `/extract`를 호출하며, 대화 기록·초안·설정을 계정별 브라우저 저장 영역에 분리한다.
+- `doctor.html` — 의사용 읽기 전용 리포트 대시보드. 의사 권한 계정만 실제 환자 목록을 조회하고, `doctor.html?demo=1`은 무로그인 가상 리포트로 동작한다.
+- `backend/server.js` — Render용 Solar/OpenAI 프록시. `/chat`, `/extract`, `/adoption-consult`, `/health`를 제공하고, API 키는 환경변수에서만 읽는다.
+- `SUPABASE_보안강화_20260619.sql` — 역할 상승 차단, 환자 공유 범위 강제, 의사 조회 RPC를 정의한다.
+- GitHub: `forblune/mindhub-mvp`. 프론트는 GitHub Pages/`mindhub.forblune.com`, AI 백엔드는 Render로 배포한다.
 
 ## 파일 안내
-- `index.html` : 상단 `BACKEND_URL`에 Render 주소 넣으면 Solar 실제 추출, 비우면 목업.
-- `backend/` : Render 배포 가이드는 `backend/README_배포.md`.
-- `배포_실행순서.md` : 전체 배포·연동 순서.
-- `준비물_체크리스트.md` : 필요한 계정·키.
+- `README.md` : 공개용 프로젝트 설명, 라이브 데모, 실행/배포/안전 설계 요약.
+- `index.html` : 제품 소개, 무로그인 가상 시나리오, 기관 도입 상담 모달. 실제 환자 데이터나 Solar 토큰을 쓰지 않는 평가용 첫 화면.
+- `app.html` : 환자용 ChatGPT형 대화 앱. 로그인 필수, 위험 감지·로컬 폴백·계정별 저장·환자 공유 설정을 포함한다.
+- `doctor.html` : 의사 권한 전용 읽기 대시보드. Supabase 보안 RPC로 환자가 공유한 항목만 표시한다.
+- `backend/server.js` : Render용 Solar/OpenAI 프록시. 인증, Origin 제한, rate limit, 입력 길이 제한, 업스트림 타임아웃을 담당한다.
+- `backend/README_배포.md` : Render 환경변수와 배포 확인 절차.
+- `SUPABASE_보안강화_20260619.sql` : Supabase RLS/RPC 보안 마이그레이션.
+- `배포_실행순서.md`, `준비물_체크리스트.md` : 발표/운영 준비용 체크리스트. 일부 내용은 초기 계획일 수 있으므로 최종 구조는 `README.md`와 본 파일을 우선한다.
 
 ## 작업 규칙
 - **한 파일은 한 번에 한 에이전트만.** 사람이 Cowork(다른 Claude)와도 같이 작업 중 — 같은 파일 동시 수정 금지. 커밋은 작게, 자주.
@@ -34,4 +40,4 @@
 - 막히면 추측해서 새로 짜지 말고, 위 원칙에 맞는지부터 확인.
 
 ## 시작할 때
-먼저 `index.html`, `backend/server.js`, `배포_실행순서.md`를 읽고 현재 상태를 요약한 뒤, 다음 할 일을 제안할 것. 그다음 사용자 확인을 받고 진행.
+먼저 `README.md`, `CLAUDE.md`, 작업 대상 파일(`index.html`/`app.html`/`doctor.html`/`backend/server.js` 중 해당 파일)을 읽고 현재 구조와 지켜야 할 안전선을 확인한다. 큰 변경은 사용자에게 범위를 짧게 알린 뒤 진행하고, 기능 변경 후에는 가능한 경우 `cd backend && npm test`로 회귀 테스트를 확인한다.
