@@ -415,7 +415,12 @@ async function boot(){
     loadPatients();
   }catch(e){ console.warn('boot 실패', e); setView('login'); }
 }
-sb && sb.auth.onAuthStateChange(()=> boot());
+sb && sb.auth.onAuthStateChange((event)=>{
+  // 토큰 자동 갱신(약 1시간 주기·탭 재포커스)에는 boot()를 재실행하지 않는다.
+  // 재실행하면 selectedPid가 초기화돼 의사가 보던 환자가 목록으로 풀리고,
+  // 갱신 중 일시 오류 시 로그인 화면으로 튕긴다. (app.html과 동일한 가드)
+  if(event!=='TOKEN_REFRESHED') boot();
+});
 boot();
 </script>
 </body>
