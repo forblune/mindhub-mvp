@@ -201,6 +201,16 @@
   .share-btn.off{ color:var(--muted); }
   .lock{ flex:none; font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:4px; }
   .sec.excluded{ opacity:.45; }
+  .priority-panel{ border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px; background:var(--side); }
+  .priority-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .priority-head span{ font-size:13px; font-weight:700; color:var(--text); }
+  .priority-head small{ flex:none; font-size:11.5px; color:var(--muted); }
+  .priority-item{ display:grid; grid-template-columns:84px minmax(0,1fr); gap:8px; padding:8px 0; border-top:1px solid var(--line); }
+  .priority-item span{ font-size:11.5px; font-weight:700; color:var(--sub); }
+  .priority-item b{ min-width:0; font-size:13px; font-weight:600; line-height:1.55; color:var(--text); overflow-wrap:anywhere; }
+  .priority-item.urgent span{ color:var(--danger); }
+  .priority-item.caution span{ color:#9b6b10; }
+  .priority-empty{ border-top:1px solid var(--line); padding-top:9px; color:var(--muted); font-size:12.5px; line-height:1.6; }
   .rbars{ display:flex; align-items:flex-end; gap:5px; height:54px; margin-top:10px; }
   .rbar{ flex:1; min-width:8px; background:#dfe3e8; border-radius:4px 4px 0 0; position:relative; }
   .rbar.low{ background:#f0b3af; }
@@ -315,7 +325,9 @@
   :root[data-theme="dark"] .triage .b,
   :root[data-theme="dark"] .triage .ev{color:#e3aaa6}
   :root[data-theme="dark"] .sec{background:#101815}
+  :root[data-theme="dark"] .priority-item.caution span{color:#efb45a}
   :root[data-theme="dark"] .rv-note,
+  :root[data-theme="dark"] .priority-panel,
   :root[data-theme="dark"] .consent-body{background:#15251f;border-color:#2f4e43}
   :root[data-theme="dark"] .consent-safety{border-color:#2f4e43}
   :root[data-theme="dark"] .kakao-btn{color:#191600}
@@ -362,6 +374,7 @@
     .crisis .c-line{ align-items:flex-start; flex-direction:column; gap:2px; }
     .sec .top,.set-toggle{ gap:10px; }
     .sec .lbl,.set-toggle .t-lbl{ overflow-wrap:anywhere; }
+    .priority-item{ grid-template-columns:1fr; gap:2px; }
     .rv-actions button{ min-height:46px; padding-left:8px; padding-right:8px; }
     .chat-empty{ padding-left:22px; padding-right:22px; padding-bottom:13vh; }
     .empty-mark{ width:42px; height:42px; margin-bottom:16px; border-radius:14px; font-size:19px; }
@@ -792,7 +805,7 @@ function aggregate(src){
   const medDays     = src.filter(c => c.sig.med_taken===true).length;
   const medTotal    = src.filter(c => c.sig.med_taken!=null).length;
   const stressors   = [...new Set(src.map(c => c.sig.stressor).filter(Boolean))];
-  const redItem     = src.find(c => c.sig.red_flag);
+  const redItem     = [...src].reverse().find(c => c.sig.red_flag);
   return {
     n: src.length,
     sleepSeries, sleepValid,
@@ -801,6 +814,81 @@ function aggregate(src){
     medDays, medTotal, stressors,
     red: !!redItem, evidence: redItem ? redItem.sig.evidence : null
   };
+}
+
+function sortedReportEntries(src){
+  return [...(src || [])].sort((a,b)=>new Date(a.at || 0)-new Date(b.at || 0));
+}
+function validNumber(value){
+  if(value===null || value===undefined || value==='') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+function recentValues(entries, key, limit){
+  return entries
+    .map(c => validNumber(c?.sig?.[key]))
+    .filter(v => v!==null)
+    .slice(-(limit || 3));
+}
+function topStressor(entries){
+  const counts = new Map();
+  entries.forEach(c => {
+    const stressor = typeof c?.sig?.stressor === 'string' ? c.sig.stressor.trim() : '';
+    if(stressor) counts.set(stressor, (counts.get(stressor) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+}
+function reportInsights(src, share){
+  const entries = sortedReportEntries(src);
+  const a = aggregate(entries);
+  const items = [];
+  const canShow = key => key === 'safety' || !share || share[key] !== false;
+  const add = (key, level, label, text) => {
+    if(canShow(key)) items.push({ key, level, label, text });
+  };
+
+  if(a.red) add('safety', 'urgent', '안전', '위험 표현이 있어 진료 시작 전 현재 안전과 계획/준비 여부 확인이 먼저입니다.');
+
+  const recentSleep = recentValues(entries, 'sleep_h', 3);
+  const lowSleepDays = recentSleep.filter(v => v < 5).length;
+  if(a.sleepAvg!==null && Number(a.sleepAvg) < 5){
+    add('sleep', 'caution', '수면', `평균 수면 ${a.sleepAvg}h로 낮습니다. 최근 ${recentSleep.length || 0}개 기록 중 ${lowSleepDays}개가 5h 미만입니다.`);
+  }else if(recentSleep.length >= 2 && lowSleepDays >= 2){
+    add('sleep', 'caution', '수면', `최근 수면 기록 ${recentSleep.length}개 중 ${lowSleepDays}개가 5h 미만입니다.`);
+  }
+
+  if(a.medTotal){
+    const missed = a.medTotal - a.medDays;
+    const adherence = Math.round((a.medDays / a.medTotal) * 100);
+    if(missed > 0) add('med', 'caution', '복약', `복약 누락 ${missed}건이 있습니다. 확인된 기록 기준 순응도는 ${adherence}%입니다.`);
+  }
+
+  const moods = recentValues(entries, 'mood', entries.length);
+  if(moods.length){
+    const latestMood = moods[moods.length - 1];
+    const moodDrop = moods.length >= 2 ? latestMood - moods[0] : 0;
+    if(latestMood <= 3){
+      add('mood', 'caution', '기분', `최근 기분 점수가 ${latestMood}/10으로 낮습니다. 수면·복약 변화와 함께 확인이 필요합니다.`);
+    }else if(moodDrop <= -2){
+      add('mood', 'caution', '기분', `첫 기록 대비 최근 기분 점수가 ${Math.abs(moodDrop)}점 낮아졌습니다.`);
+    }
+  }
+
+  const stressor = topStressor(entries);
+  if(stressor && stressor[1] >= 2){
+    add('stressor', 'steady', '스트레스원', `${stressor[0]}이 반복해서 언급됐습니다. 최근 악화와 연결되는지 확인해 보세요.`);
+  }
+
+  return items.slice(0, 4);
+}
+function renderInsightPanel(items, emptyText){
+  const body = items.length
+    ? items.map(item => `<div class="priority-item ${item.level}" data-key="${item.key}">
+        <span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.text)}</b></div>`).join('')
+    : `<div class="priority-empty">${escapeHtml(emptyText)}</div>`;
+  return `<div class="priority-panel">
+    <div class="priority-head"><span>진료 전 우선 확인</span><small>${items.length ? '자동 트리아지' : '기록 대기'}</small></div>
+    ${body}</div>`;
 }
 
 function sleepBars(series){
@@ -822,8 +910,9 @@ function secRow(key, label, valHtml){
 }
 
 function renderReport(src){
+  lastReportSource = src || collected;
   const body = document.getElementById('reportBody');
-  const a = aggregate(src);
+  const a = aggregate(lastReportSource);
   if(a.n===0){
     body.innerHTML = `<div class="rv-empty">아직 정리할 대화가 없어요.<br>채팅에서 일상 얘기를 나누면<br>여기에 자동으로 정리돼요.</div>`;
     return;
@@ -837,6 +926,10 @@ function renderReport(src){
       <div class="b">대화 중 자살/자해 관련 표현이 감지됐어요. 진료 시작 전 안전부터 확인해 주세요.</div>
       <div class="ev">근거 원문: "${escapeHtml(a.evidence||'')}"</div></div>`;
   }
+  h += renderInsightPanel(
+    reportInsights(lastReportSource, reportShare),
+    '아직 우선 확인 항목이 뚜렷하지 않아요. 기록이 더 쌓이면 수면·복약·기분 변화가 자동으로 정리돼요.'
+  );
 
   // ① 수면·기능
   const sleepVal = a.sleepAvg!=null
@@ -869,16 +962,13 @@ async function toggleShare(key){
   reportShare[key] = !reportShare[key];
   settings.shareDefault[key] = reportShare[key];
   persistSettings();
-  const sec = document.querySelector('.sec[data-key="'+key+'"]');
-  if(!sec) return;
-  sec.classList.toggle('excluded', !reportShare[key]);
-  const b = sec.querySelector('.share-btn');
-  if(b){ b.textContent = reportShare[key] ? '공유 중' : '비공개'; b.classList.toggle('off', !reportShare[key]); }
+  renderReport(lastReportSource || collected);
   const saved = await saveShareSettingsCloud(reportShare);
   if(!saved) toast('화면에는 반영됐지만 공유 설정 저장에 실패했어요');
 }
 
 let reportLoadSeq = 0;
+let lastReportSource = null;
 function openReport(){
   closeAll();
   reportShare = { ...settings.shareDefault };   // 설정의 공유 기본값 적용

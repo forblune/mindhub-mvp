@@ -99,6 +99,16 @@
   .sec .lbl{ font-size:13px; font-weight:600; color:var(--sub); }
   .sec .val{ font-size:15px; margin-top:6px; line-height:1.6; }
   .sec .val .bad{ color:var(--danger); font-weight:600; }
+  .priority-panel{ border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px; background:var(--side); }
+  .priority-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .priority-head span{ font-size:13px; font-weight:700; color:var(--text); }
+  .priority-head small{ flex:none; font-size:11.5px; color:var(--muted); }
+  .priority-item{ display:grid; grid-template-columns:84px minmax(0,1fr); gap:8px; padding:8px 0; border-top:1px solid var(--line); }
+  .priority-item span{ font-size:11.5px; font-weight:700; color:var(--sub); }
+  .priority-item b{ min-width:0; font-size:13px; font-weight:600; line-height:1.55; color:var(--text); overflow-wrap:anywhere; }
+  .priority-item.urgent span{ color:var(--danger); }
+  .priority-item.caution span{ color:#9b6b10; }
+  .priority-empty{ border-top:1px solid var(--line); padding-top:9px; color:var(--muted); font-size:12.5px; line-height:1.6; }
   .rbars{ display:flex; align-items:flex-end; gap:5px; height:54px; margin-top:10px; }
   .rbar{ flex:1; min-width:8px; background:#dfe3e8; border-radius:4px 4px 0 0; position:relative; }
   .rbar.low{ background:#f0b3af; }
@@ -116,7 +126,9 @@
   :root[data-theme="dark"] .triage .b,
   :root[data-theme="dark"] .triage .ev{color:#e3aaa6}
   :root[data-theme="dark"] .rbar{background:#34413c}
-  :root[data-theme="dark"] .rnote{background:#15201c}
+  :root[data-theme="dark"] .priority-item.caution span{color:#efb45a}
+  :root[data-theme="dark"] .rnote,
+  :root[data-theme="dark"] .priority-panel{background:#15201c}
   :root[data-theme="dark"] .demo-btn,
   :root[data-theme="dark"] .theme-btn{background:#111a17;color:var(--text)}
 
@@ -136,6 +148,7 @@
     .txtbtn{ font-size:12.5px; padding-left:6px; padding-right:6px; }
     .dinner{ padding:14px max(12px,env(safe-area-inset-right)) 24px max(12px,env(safe-area-inset-left)); }
     .sec,.triage{ padding-left:13px; padding-right:13px; }
+    .priority-item{ grid-template-columns:1fr; gap:2px; }
   }
   @media(max-height:420px) and (orientation:landscape){
     .gate{ padding-top:12px; padding-bottom:12px; }
@@ -241,7 +254,7 @@ function aggregate(src){
   const medDays     = src.filter(c => c.sig.med_taken===true).length;
   const medTotal    = src.filter(c => c.sig.med_taken!=null).length;
   const stressors   = [...new Set(src.map(c => c.sig.stressor).filter(Boolean))];
-  const redItem     = src.find(c => c.sig.red_flag);
+  const redItem     = [...src].reverse().find(c => c.sig.red_flag);
   return {
     n: src.length, sleepSeries, sleepValid,
     sleepAvg: sleepValid.length ? (sleepValid.reduce((a,b)=>a+b,0)/sleepValid.length).toFixed(1) : null,
@@ -249,6 +262,77 @@ function aggregate(src){
     medDays, medTotal, stressors,
     red: !!redItem, evidence: redItem ? redItem.sig.evidence : null
   };
+}
+function sortedReportEntries(src){
+  return [...(src || [])].sort((a,b)=>new Date(a.at || 0)-new Date(b.at || 0));
+}
+function validNumber(value){
+  if(value===null || value===undefined || value==='') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+function recentValues(entries, key, limit){
+  return entries
+    .map(c => validNumber(c?.sig?.[key]))
+    .filter(v => v!==null)
+    .slice(-(limit || 3));
+}
+function topStressor(entries){
+  const counts = new Map();
+  entries.forEach(c => {
+    const stressor = typeof c?.sig?.stressor === 'string' ? c.sig.stressor.trim() : '';
+    if(stressor) counts.set(stressor, (counts.get(stressor) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+}
+function reportInsights(src){
+  const entries = sortedReportEntries(src);
+  const a = aggregate(entries);
+  const items = [];
+  const add = (key, level, label, text) => items.push({ key, level, label, text });
+
+  if(a.red) add('safety', 'urgent', '안전', '위험 표현이 있어 진료 시작 전 현재 안전과 계획/준비 여부 확인이 먼저입니다.');
+
+  const recentSleep = recentValues(entries, 'sleep_h', 3);
+  const lowSleepDays = recentSleep.filter(v => v < 5).length;
+  if(a.sleepAvg!==null && Number(a.sleepAvg) < 5){
+    add('sleep', 'caution', '수면', `평균 수면 ${a.sleepAvg}h로 낮습니다. 최근 ${recentSleep.length || 0}개 기록 중 ${lowSleepDays}개가 5h 미만입니다.`);
+  }else if(recentSleep.length >= 2 && lowSleepDays >= 2){
+    add('sleep', 'caution', '수면', `최근 수면 기록 ${recentSleep.length}개 중 ${lowSleepDays}개가 5h 미만입니다.`);
+  }
+
+  if(a.medTotal){
+    const missed = a.medTotal - a.medDays;
+    const adherence = Math.round((a.medDays / a.medTotal) * 100);
+    if(missed > 0) add('med', 'caution', '복약', `복약 누락 ${missed}건이 있습니다. 확인된 기록 기준 순응도는 ${adherence}%입니다.`);
+  }
+
+  const moods = recentValues(entries, 'mood', entries.length);
+  if(moods.length){
+    const latestMood = moods[moods.length - 1];
+    const moodDrop = moods.length >= 2 ? latestMood - moods[0] : 0;
+    if(latestMood <= 3){
+      add('mood', 'caution', '기분', `최근 기분 점수가 ${latestMood}/10으로 낮습니다. 수면·복약 변화와 함께 확인이 필요합니다.`);
+    }else if(moodDrop <= -2){
+      add('mood', 'caution', '기분', `첫 기록 대비 최근 기분 점수가 ${Math.abs(moodDrop)}점 낮아졌습니다.`);
+    }
+  }
+
+  const stressor = topStressor(entries);
+  if(stressor && stressor[1] >= 2){
+    add('stressor', 'steady', '스트레스원', `${stressor[0]}이 반복해서 언급됐습니다. 최근 악화와 연결되는지 확인해 보세요.`);
+  }
+
+  return items.slice(0, 4);
+}
+function renderInsightPanel(items, emptyText){
+  const body = items.length
+    ? items.map(item => `<div class="priority-item ${item.level}" data-key="${item.key}">
+        <span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.text)}</b></div>`).join('')
+    : `<div class="priority-empty">${escapeHtml(emptyText)}</div>`;
+  return `<div class="priority-panel">
+    <div class="priority-head"><span>진료 전 우선 확인</span><small>${items.length ? '자동 트리아지' : '기록 대기'}</small></div>
+    ${body}</div>`;
 }
 function sleepBars(series){
   const max = 8;
@@ -342,6 +426,10 @@ function renderDoctorReport(entries, label, isDemo){
       <div class="b">대화 중 자살/자해 관련 표현이 감지됐습니다. 진료 시작 전 안전부터 평가하세요.</div>
       <div class="ev">근거 원문: "${escapeHtml(a.evidence||'')}"</div></div>`;
   }
+  h += renderInsightPanel(
+    reportInsights(entries),
+    '아직 우선 확인 항목이 뚜렷하지 않습니다. 기록이 더 쌓이면 수면·복약·기분 변화가 자동으로 정리됩니다.'
+  );
   const sleepVal = a.sleepAvg!=null
     ? (a.sleepAvg<5 ? `<span class="bad">평균 수면 ${a.sleepAvg}h (부족)</span>` : `평균 수면 ${a.sleepAvg}h`)
       + `<div class="rbars">${sleepBars(a.sleepSeries)}</div>`
