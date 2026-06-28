@@ -465,12 +465,12 @@
 <!-- 헤더 -->
 <header class="hdr">
   <div class="side-l">
-    <button class="iconbtn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
+    <button class="iconbtn" id="drawerToggle" onclick="toggleDrawer()" aria-label="메뉴" aria-controls="drawer" aria-expanded="false">☰</button>
   </div>
   <div class="title">MindHub</div>
   <div class="side-r">
-    <button class="iconbtn" onclick="openSearch()" aria-label="검색">🔍</button>
-    <button class="avatar" onclick="toggleAcct()" aria-label="계정">나</button>
+    <button class="iconbtn" onclick="openSearch()" aria-label="검색" aria-controls="drawer">🔍</button>
+    <button class="avatar" id="acctToggle" onclick="toggleAcct()" aria-label="계정" aria-controls="acct" aria-expanded="false">나</button>
   </div>
 </header>
 
@@ -1387,6 +1387,12 @@ syncThemeUI();
 
 /* ===== 사이드 / 계정 메뉴 ===== */
 function scrim(on){ document.getElementById('scrim').classList.toggle('on', on); }
+function syncMenuButtons(){
+  const desktop = window.matchMedia('(min-width:900px)').matches;
+  const drawerOpen = desktop ? !document.body.classList.contains('nav-collapsed') : document.getElementById('drawer').classList.contains('on');
+  document.getElementById('drawerToggle')?.setAttribute('aria-expanded', drawerOpen ? 'true' : 'false');
+  document.getElementById('acctToggle')?.setAttribute('aria-expanded', document.getElementById('acct').classList.contains('on') ? 'true' : 'false');
+}
 function toggleDrawer(){
   document.getElementById('acct').classList.remove('on');
   if(window.matchMedia('(min-width:900px)').matches){
@@ -1396,12 +1402,14 @@ function toggleDrawer(){
     document.getElementById('drawer').classList.toggle('on', open);  // 모바일: 오버레이
     scrim(open);
   }
+  syncMenuButtons();
 }
 function toggleAcct(){
   const a=document.getElementById('acct'); const willOpen=!a.classList.contains('on');
   a.classList.toggle('on', willOpen); document.getElementById('drawer').classList.remove('on'); scrim(willOpen);
+  syncMenuButtons();
 }
-function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); }
+function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); syncMenuButtons(); }
 
 function openSearch(){
   const drawer = document.getElementById('drawer');
@@ -1412,8 +1420,10 @@ function openSearch(){
     drawer.classList.add('on');
     scrim(true);
   }
+  syncMenuButtons();
   setTimeout(()=>document.getElementById('convSearch').focus(), 0);
 }
+syncMenuButtons();
 
 function newChat(){
   if(sending){ toast('답변을 마친 뒤 새 대화를 시작할 수 있어요'); return; }
