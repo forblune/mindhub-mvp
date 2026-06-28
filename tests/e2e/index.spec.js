@@ -26,6 +26,32 @@ test.describe("MindHub public landing page", () => {
     await expect(page.locator("#stressValue")).toContainText("직장 스트레스");
   });
 
+  test("resets the login-free scenario demo to its initial state", async ({ page }) => {
+    await page.goto("/index.html");
+
+    await page.locator("#demo").scrollIntoViewIfNeeded();
+    await page.getByRole("button", { name: /시나리오 실행/ }).click();
+    await expect(page.locator("#reportReady")).toHaveText("리포트 완성", { timeout: 8_000 });
+
+    const sleepRow = page.locator(".report-row[data-share='sleep']");
+    const sleepToggle = sleepRow.locator(".share-toggle");
+    await sleepToggle.click();
+    await expect(sleepRow).toHaveClass(/off/);
+
+    await page.getByRole("button", { name: "초기화" }).click();
+
+    await expect(page.locator("#reportReady")).toHaveText("대기 중");
+    await expect(page.locator("#reportReady")).not.toHaveClass(/on/);
+    await expect(page.locator("#triageDemo")).not.toHaveClass(/on/);
+    await expect(page.locator("#demoStatus")).toContainText("준비됨");
+    await expect(page.locator("#demoChat")).toContainText("오늘 있었던 일이나 궁금한 것");
+    await expect(sleepRow).not.toHaveClass(/off/);
+    await expect(sleepToggle).toHaveText("공유 중");
+    await expect(sleepToggle).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#demoRun")).toHaveText("▶ 시나리오 실행");
+    await expect(page.locator("#demoRun")).toBeEnabled();
+  });
+
   test("opens and closes the adoption consultation modal without submitting", async ({ page }) => {
     await page.goto("/index.html");
 
