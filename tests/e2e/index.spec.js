@@ -25,4 +25,19 @@ test.describe("MindHub public landing page", () => {
     await expect(page.locator("#medValue")).toContainText("복약 1/2일");
     await expect(page.locator("#stressValue")).toContainText("직장 스트레스");
   });
+
+  test("opens and closes the adoption consultation modal without submitting", async ({ page }) => {
+    await page.goto("/index.html");
+
+    await page.locator(".hero-actions").getByRole("button", { name: /기관 도입 상담/ }).click();
+    await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "false");
+    await expect(page.locator("#consultTitle")).toContainText("AI 도입 적합도 상담");
+    await expect(page.locator("#consultOrganization")).toBeVisible();
+    await expect(page.locator("#consultGoal")).toBeVisible();
+    await expect(page.locator("#consultScale")).toBeVisible();
+    await expect(page.locator("#consultPriority")).toBeVisible();
+
+    await page.getByRole("button", { name: "도입 상담 닫기" }).click();
+    await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "true");
+  });
 });
