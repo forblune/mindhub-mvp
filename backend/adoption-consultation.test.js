@@ -23,6 +23,13 @@ test("도입 상담 입력을 허용 목록과 길이로 제한한다", () => {
   assert.equal(normalizeAdoptionInput({ ...valid, goal:"unknown" }).goal, "");
 });
 
+test("도입 상담 필수 선택값이 허용 목록 밖이면 유효하지 않다", () => {
+  assert.equal(isValidAdoptionInput(normalizeAdoptionInput({ ...valid, organization:"" })), false);
+  assert.equal(isValidAdoptionInput(normalizeAdoptionInput({ ...valid, scale:"enterprise" })), false);
+  assert.equal(isValidAdoptionInput(normalizeAdoptionInput({ ...valid, priority:null })), false);
+  assert.equal(normalizeAdoptionInput({ ...valid, workflow:42 }).workflow, "");
+});
+
 test("프롬프트에는 기관 조건만 포함하고 개인정보를 요구하지 않는다", () => {
   const input = buildAdoptionInput(normalizeAdoptionInput(valid));
   assert.match(input, /정신건강의학과 의원/);
