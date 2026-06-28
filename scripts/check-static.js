@@ -4,6 +4,7 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const htmlFiles = ["index.html", "app.html", "doctor.html"];
 const jsFiles = [
+  "scripts/check-static.js",
   "playwright.config.js",
   "backend/server.js",
   "backend/conversation-style.js",
@@ -23,6 +24,13 @@ function parseJavaScript(label, code){
   }
 }
 
+function rejectFocusedTests(label, code){
+  const focusedTestPattern = /\b(?:test\s*\.\s*describe|test|it|describe)\s*\.\s*only\s*\(/;
+  if(focusedTestPattern.test(code)){
+    throw new Error(`${label}: remove focused test before committing`);
+  }
+}
+
 for(const file of htmlFiles){
   const html = fs.readFileSync(path.join(root, file), "utf8");
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
@@ -32,7 +40,9 @@ for(const file of htmlFiles){
 }
 
 for(const file of jsFiles){
-  parseJavaScript(file, fs.readFileSync(path.join(root, file), "utf8"));
+  const code = fs.readFileSync(path.join(root, file), "utf8");
+  parseJavaScript(file, code);
+  if(/\.(test|spec)\.js$/.test(file)) rejectFocusedTests(file, code);
 }
 
 console.log(`Static validation passed: ${htmlFiles.length} HTML files, ${jsFiles.length} JS files`);
