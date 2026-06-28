@@ -17,4 +17,14 @@ test.describe("MindHub doctor demo dashboard", () => {
     await expect(report).toContainText("최근 기분 점수가 1/10");
     await expect(report).toContainText("진단이나 응급 알림이 아니라");
   });
+
+  test("keeps the virtual report after refresh", async ({ page }) => {
+    await page.goto("/doctor.html?demo=1");
+
+    await page.locator("#refreshBtn").click();
+
+    await expect(page.locator("#plist")).toContainText("강하늘 (가상)");
+    await expect(page.locator("#dinner")).toContainText("진료 전 우선 확인");
+    await expect(page.locator("#dinner")).toContainText("위험 신호 감지");
+  });
 });
