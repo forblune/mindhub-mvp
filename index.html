@@ -674,12 +674,12 @@
                 <p>위험 표현이 감지됐습니다. 일반 원문은 숨기고 안전 근거 문장만 표시합니다.</p>
               </div>
               <div class="report-row" data-share="sleep">
-                <div class="rr-top"><b>① 수면·기능</b><button class="share-toggle" onclick="toggleDemoShare('sleep',this)">공유 중</button></div>
+                <div class="rr-top"><b>① 수면·기능</b><button class="share-toggle" aria-pressed="false" onclick="toggleDemoShare('sleep',this)">공유 중</button></div>
                 <div class="rr-value muted" id="sleepValue">아직 수면 기록이 없습니다.</div>
                 <div class="sleep-bars"><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <div class="report-row" data-share="med">
-                <div class="rr-top"><b>② 약물 순응도</b><button class="share-toggle" onclick="toggleDemoShare('med',this)">공유 중</button></div>
+                <div class="rr-top"><b>② 약물 순응도</b><button class="share-toggle" aria-pressed="false" onclick="toggleDemoShare('med',this)">공유 중</button></div>
                 <div class="rr-value muted" id="medValue">아직 복약 기록이 없습니다.</div>
               </div>
               <div class="report-row">
@@ -687,11 +687,11 @@
                 <div class="rr-value muted" id="safetyValue">특이 위험 신호 없음</div>
               </div>
               <div class="report-row" data-share="stress">
-                <div class="rr-top"><b>④ 스트레스원·환경</b><button class="share-toggle" onclick="toggleDemoShare('stress',this)">공유 중</button></div>
+                <div class="rr-top"><b>④ 스트레스원·환경</b><button class="share-toggle" aria-pressed="false" onclick="toggleDemoShare('stress',this)">공유 중</button></div>
                 <div class="rr-value muted" id="stressValue">아직 스트레스원 기록이 없습니다.</div>
               </div>
               <div class="report-row" data-share="mood">
-                <div class="rr-top"><b>⑤ 정신상태·기타</b><button class="share-toggle" onclick="toggleDemoShare('mood',this)">공유 중</button></div>
+                <div class="rr-top"><b>⑤ 정신상태·기타</b><button class="share-toggle" aria-pressed="false" onclick="toggleDemoShare('mood',this)">공유 중</button></div>
                 <div class="rr-value muted" id="moodValue">기분 데이터가 부족합니다.</div>
               </div>
               <div class="report-foot">이 리포트는 진단이 아니라 일상 대화에서 정리한 기록 요약입니다. 의학적 판단은 의사가 합니다.</div>
@@ -1046,7 +1046,10 @@ function resetDemo(){
   });
   document.querySelectorAll(".progress-step").forEach(el=>el.classList.remove("on"));
   document.querySelectorAll(".report-row[data-share]").forEach(el=>el.classList.remove("off"));
-  document.querySelectorAll(".share-toggle:not(.locked)").forEach(el=>el.textContent="공유 중");
+  document.querySelectorAll(".share-toggle:not(.locked)").forEach(el=>{
+    el.textContent="공유 중";
+    el.setAttribute("aria-pressed","false");
+  });
   const button=document.getElementById("demoRun");
   button.disabled=false;button.textContent="▶ 시나리오 실행";
 }
@@ -1055,6 +1058,7 @@ function toggleDemoShare(key,button){
   const row=document.querySelector('.report-row[data-share="'+key+'"]');
   const off=row.classList.toggle("off");
   button.textContent=off?"비공개":"공유 중";
+  button.setAttribute("aria-pressed", off ? "true" : "false");
 }
 
 function runDemoFromTop(){

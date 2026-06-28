@@ -73,9 +73,11 @@ test.describe("MindHub public landing page", () => {
     await sleepToggle.click();
     await expect(sleepRow).toHaveClass(/off/);
     await expect(sleepToggle).toHaveText("비공개");
+    await expect(sleepToggle).toHaveAttribute("aria-pressed", "true");
 
     await sleepToggle.click();
     await expect(sleepRow).not.toHaveClass(/off/);
     await expect(sleepToggle).toHaveText("공유 중");
+    await expect(sleepToggle).toHaveAttribute("aria-pressed", "false");
   });
 });
