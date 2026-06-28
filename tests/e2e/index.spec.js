@@ -41,6 +41,19 @@ test.describe("MindHub public landing page", () => {
     await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "true");
   });
 
+  test("closes the adoption consultation modal with Escape", async ({ page }) => {
+    await page.goto("/index.html");
+
+    const consultButton = page.locator(".hero-actions").getByRole("button", { name: /기관 도입 상담/ });
+    await consultButton.click();
+    await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "false");
+
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "true");
+    await expect(consultButton).toBeVisible();
+  });
+
   test("persists the selected theme on reload", async ({ page }) => {
     await page.goto("/index.html");
 
