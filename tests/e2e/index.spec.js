@@ -57,7 +57,9 @@ test.describe("MindHub public landing page", () => {
 
     await page.locator(".hero-actions").getByRole("button", { name: /기관 도입 상담/ }).click();
     await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "false");
+    await expect(page.locator("[role='dialog']")).toHaveAttribute("aria-describedby", "consultDesc");
     await expect(page.locator("#consultTitle")).toContainText("AI 도입 적합도 상담");
+    await expect(page.locator("#consultDesc")).toContainText("첫 파일럿 범위");
     await expect(page.locator("#consultOrganization")).toBeVisible();
     await expect(page.locator("#consultGoal")).toBeVisible();
     await expect(page.locator("#consultScale")).toBeVisible();
