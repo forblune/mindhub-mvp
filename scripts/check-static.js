@@ -48,6 +48,13 @@ function validateHtmlReferences(label, html){
       }
     }
   }
+
+  for(const match of html.matchAll(/\bhref\s*=\s*(["'])#([^"']*)\1/gi)){
+    const target = match[2].trim();
+    if(target && !ids.has(target)){
+      throw new Error(`${label}: href="#${target}" references missing id "${target}"`);
+    }
+  }
 }
 
 for(const file of htmlFiles){
