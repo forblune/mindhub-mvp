@@ -1180,6 +1180,7 @@ function syncThemeUI(){
     const label = dark ? '일반 모드로 전환' : '다크 모드로 전환';
     el.setAttribute('aria-label', label);
     el.setAttribute('title', label);
+    el.setAttribute('aria-pressed', dark ? 'true' : 'false');
   });
 }
 function setTheme(theme, persist){

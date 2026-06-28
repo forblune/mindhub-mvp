@@ -49,8 +49,10 @@ test.describe("MindHub public landing page", () => {
     await page.locator(".theme-toggle").click();
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await expect(page.locator(".theme-toggle")).toHaveAttribute("aria-pressed", expectedTheme === "dark" ? "true" : "false");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await expect(page.locator(".theme-toggle")).toHaveAttribute("aria-pressed", expectedTheme === "dark" ? "true" : "false");
   });
 
   test("opens the doctor demo from the landing page link", async ({ page }) => {

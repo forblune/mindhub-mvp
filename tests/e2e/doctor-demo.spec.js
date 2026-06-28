@@ -36,8 +36,10 @@ test.describe("MindHub doctor demo dashboard", () => {
     await page.locator("#dhdr [data-theme-button]").click();
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await expect(page.locator("#dhdr [data-theme-button]")).toHaveAttribute("aria-pressed", expectedTheme === "dark" ? "true" : "false");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await expect(page.locator("#dhdr [data-theme-button]")).toHaveAttribute("aria-pressed", expectedTheme === "dark" ? "true" : "false");
     await expect(page.locator("#dinner")).toContainText("강하늘 (가상)");
   });
 });
