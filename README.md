@@ -57,6 +57,15 @@ npm test   # 백엔드 회귀 테스트
 ```
 키 없이 `npm start`만 해도 서버는 뜨지만 `/chat`·`/extract`는 503을 반환한다(대화 폴백은 프론트가 처리).
 
+## 테스트
+```bash
+npm ci
+npm run build       # 정적 HTML/JS 문법 검증
+npm test            # 백엔드 회귀 테스트
+npm run test:e2e    # index.html + doctor.html?demo=1 Playwright E2E
+```
+E2E는 로그인 없는 공개 화면만 대상으로 하며, `app.html` 로그인 세션이나 운영 Supabase 데이터는 사용하지 않음.
+
 ## 배포 (프론트)
 - GitHub Pages: Settings → Pages → Branch `main` / `(root)` → 저장.
 - 또는 Cloudflare Pages + 개인 도메인.
