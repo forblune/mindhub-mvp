@@ -52,4 +52,14 @@ test.describe("MindHub public landing page", () => {
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
   });
+
+  test("opens the doctor demo from the landing page link", async ({ page }) => {
+    await page.goto("/index.html");
+
+    await page.locator(".final-actions a[href='doctor.html?demo=1']").click();
+
+    await expect(page).toHaveURL(/doctor\.html\?demo=1$/);
+    await expect(page.locator("#dhdr")).toContainText("의사 대시보드");
+    await expect(page.locator("#dinner")).toContainText("강하늘 (가상)");
+  });
 });
