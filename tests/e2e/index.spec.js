@@ -40,4 +40,16 @@ test.describe("MindHub public landing page", () => {
     await page.getByRole("button", { name: "도입 상담 닫기" }).click();
     await expect(page.locator("#consultOverlay")).toHaveAttribute("aria-hidden", "true");
   });
+
+  test("persists the selected theme on reload", async ({ page }) => {
+    await page.goto("/index.html");
+
+    const currentTheme = await page.locator("html").getAttribute("data-theme");
+    const expectedTheme = currentTheme === "dark" ? "light" : "dark";
+    await page.locator(".theme-toggle").click();
+
+    await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+  });
 });
