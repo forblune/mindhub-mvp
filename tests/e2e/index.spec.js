@@ -54,6 +54,27 @@ test.describe("MindHub public landing page", () => {
     await expect(consultButton).toBeVisible();
   });
 
+  test("generates a local adoption consultation guide when backend is unavailable", async ({ page }) => {
+    await page.route("http://127.0.0.1:3100/adoption-consult", route => route.abort());
+    await page.goto("/index.html");
+
+    await page.locator(".hero-actions").getByRole("button", { name: /기관 도입 상담/ }).click();
+    await page.locator("#consultOrganization").selectOption("clinic");
+    await page.locator("#consultGoal").selectOption("previsit");
+    await page.locator("#consultScale").selectOption("small");
+    await page.locator("#consultPriority").selectOption("privacy");
+    await page.locator("#consultWorkflow").fill("재진 환자의 최근 수면과 복약 변화를 진료 전에 빠르게 확인하고 싶습니다.");
+    await page.getByRole("button", { name: /도입 방향 확인하기/ }).click();
+
+    await expect(page.locator("#consultResult")).toHaveClass(/on/);
+    await expect(page.locator("#consultSource")).toHaveText("기본 도입 가이드");
+    await expect(page.locator("#consultOutput")).toContainText("정신건강의학과 의원");
+    await expect(page.locator("#consultOutput")).toContainText("진료 전 환자 변화 요약");
+    await expect(page.locator("#consultOutput")).toContainText("개인정보·환자 통제");
+    await expect(page.locator("#consultSubmit")).toHaveText("도입 방향 다시 확인하기");
+    await expect(page.locator("#consultSubmit")).toBeEnabled();
+  });
+
   test("persists the selected theme on reload", async ({ page }) => {
     await page.goto("/index.html");
 
