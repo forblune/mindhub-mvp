@@ -62,6 +62,7 @@ Node 18 이상 필요.
 
 ```bash
 npm ci
+npx playwright install chromium
 npm run build       # 정적 HTML/JS 문법 및 focused test 검증
 npm test            # 백엔드 회귀 테스트
 npm run test:e2e    # index.html + doctor.html?demo=1 Playwright E2E
