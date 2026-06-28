@@ -561,11 +561,11 @@
       <div class="help">리포트의 약물 순응도 항목에 모니터링 근거로 표시돼요.</div></div>
 
     <div class="set-sectitle" style="margin-top:22px">리포트 공유 기본값</div>
-    <div class="set-toggle"><span class="t-lbl">① 수면·기능</span><button class="set-switch" id="sd_sleep" onclick="toggleShareDefault('sleep')">공유</button></div>
-    <div class="set-toggle"><span class="t-lbl">② 약물 순응도</span><button class="set-switch" id="sd_med" onclick="toggleShareDefault('med')">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">① 수면·기능</span><button class="set-switch" id="sd_sleep" onclick="toggleShareDefault('sleep')" aria-pressed="false">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">② 약물 순응도</span><button class="set-switch" id="sd_med" onclick="toggleShareDefault('med')" aria-pressed="false">공유</button></div>
     <div class="set-toggle"><span class="t-lbl">③ 안전·자살 리스크</span><span class="lock">🔒 항상 포함</span></div>
-    <div class="set-toggle"><span class="t-lbl">④ 스트레스원·환경</span><button class="set-switch" id="sd_stressor" onclick="toggleShareDefault('stressor')">공유</button></div>
-    <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">⑤ 정신상태·기타</span><button class="set-switch" id="sd_mood" onclick="toggleShareDefault('mood')">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">④ 스트레스원·환경</span><button class="set-switch" id="sd_stressor" onclick="toggleShareDefault('stressor')" aria-pressed="false">공유</button></div>
+    <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">⑤ 정신상태·기타</span><button class="set-switch" id="sd_mood" onclick="toggleShareDefault('mood')" aria-pressed="false">공유</button></div>
     <div class="help" style="margin-top:8px">저장하면 의사 화면에도 이 공유 범위가 적용돼요. 리포트에서 바로 바꿀 수도 있어요.</div>
 
     <div class="set-sectitle" style="margin-top:22px">안내</div>
@@ -905,7 +905,7 @@ function secRow(key, label, valHtml){
   const off = !reportShare[key];
   return `<div class="sec${off?' excluded':''}" data-key="${key}">
     <div class="top"><div class="lbl">${label}</div>
-      <button class="share-btn${off?' off':''}" onclick="toggleShare('${key}')">${off?'비공개':'공유 중'}</button></div>
+      <button class="share-btn${off?' off':''}" onclick="toggleShare('${key}')" aria-pressed="${off ? 'true' : 'false'}">${off?'비공개':'공유 중'}</button></div>
     <div class="val">${valHtml}</div></div>`;
 }
 
@@ -1023,6 +1023,7 @@ function renderShareDefaults(){
     const b = document.getElementById('sd_'+k); if(!b) return;
     const on = settings.shareDefault[k];
     b.textContent = on ? '공유' : '비공개'; b.classList.toggle('off', !on);
+    b.setAttribute('aria-pressed', on ? 'false' : 'true');
   });
 }
 function toggleShareDefault(k){ settings.shareDefault[k] = !settings.shareDefault[k]; renderShareDefaults(); }
