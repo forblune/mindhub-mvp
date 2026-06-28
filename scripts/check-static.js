@@ -31,8 +31,28 @@ function rejectFocusedTests(label, code){
   }
 }
 
+function validateHtmlReferences(label, html){
+  const ids = new Set([...html.matchAll(/\bid\s*=\s*(["'])([^"']+)\1/gi)].map(match => match[2]));
+  const referenceAttrs = ["aria-labelledby", "aria-describedby", "aria-controls"];
+  for(const attr of referenceAttrs){
+    const pattern = new RegExp(`\\b${attr}\\s*=\\s*(["'])([^"']*)\\1`, "gi");
+    for(const match of html.matchAll(pattern)){
+      const refs = match[2].trim().split(/\s+/).filter(Boolean);
+      if(!refs.length){
+        throw new Error(`${label}: ${attr} must reference at least one id`);
+      }
+      for(const ref of refs){
+        if(!ids.has(ref)){
+          throw new Error(`${label}: ${attr} references missing id "${ref}"`);
+        }
+      }
+    }
+  }
+}
+
 for(const file of htmlFiles){
   const html = fs.readFileSync(path.join(root, file), "utf8");
+  validateHtmlReferences(file, html);
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
     .map(match => match[1].trim())
     .filter(Boolean);
