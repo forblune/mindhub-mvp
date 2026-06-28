@@ -27,4 +27,17 @@ test.describe("MindHub doctor demo dashboard", () => {
     await expect(page.locator("#dinner")).toContainText("진료 전 우선 확인");
     await expect(page.locator("#dinner")).toContainText("위험 신호 감지");
   });
+
+  test("persists the selected theme on reload", async ({ page }) => {
+    await page.goto("/doctor.html?demo=1");
+
+    const currentTheme = await page.locator("html").getAttribute("data-theme");
+    const expectedTheme = currentTheme === "dark" ? "light" : "dark";
+    await page.locator("#dhdr [data-theme-button]").click();
+
+    await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await expect(page.locator("#dinner")).toContainText("강하늘 (가상)");
+  });
 });
