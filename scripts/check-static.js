@@ -32,7 +32,14 @@ function rejectFocusedTests(label, code){
 }
 
 function validateHtmlReferences(label, html){
-  const ids = new Set([...html.matchAll(/\bid\s*=\s*(["'])([^"']+)\1/gi)].map(match => match[2]));
+  const ids = new Set();
+  for(const match of html.matchAll(/\bid\s*=\s*(["'])([^"']+)\1/gi)){
+    const id = match[2];
+    if(ids.has(id)){
+      throw new Error(`${label}: duplicate id "${id}"`);
+    }
+    ids.add(id);
+  }
   const referenceAttrs = ["aria-labelledby", "aria-describedby", "aria-controls"];
   for(const attr of referenceAttrs){
     const pattern = new RegExp(`\\b${attr}\\s*=\\s*(["'])([^"']*)\\1`, "gi");
