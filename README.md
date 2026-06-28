@@ -58,6 +58,8 @@ npm test   # 백엔드 회귀 테스트
 키 없이 `npm start`만 해도 서버는 뜨지만 `/chat`·`/extract`는 503을 반환한다(대화 폴백은 프론트가 처리).
 
 ## 테스트
+Node 18 이상 필요.
+
 ```bash
 npm ci
 npm run build       # 정적 HTML/JS 문법 검증
