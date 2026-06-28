@@ -50,3 +50,15 @@ test("Responses API의 편의 필드와 output 배열을 모두 읽는다", () =
     output:[{ content:[{ type:"output_text", text:"첫 문장" }, { type:"output_text", text:"둘째 문장" }] }]
   }), "첫 문장\n둘째 문장");
 });
+
+test("Responses API의 빈 편의 필드는 무시하고 output 배열을 사용한다", () => {
+  assert.equal(extractResponseText({
+    output_text:"   ",
+    output:[{
+      content:[
+        { type:"input_text", text:"무시할 입력" },
+        { type:"output_text", text:"정리된 상담 결과" }
+      ]
+    }]
+  }), "정리된 상담 결과");
+});
