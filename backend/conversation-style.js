@@ -196,12 +196,16 @@ function limitSentences(text, maxSentences, maxChars){
   return selected.join(" ").trim();
 }
 
+function fallbackChatReply(lastUser, mode){
+  return directChatReply(lastUser, mode) || (mode === "context" ? contextFallback(lastUser) : "");
+}
+
 function normalizeChatReply(reply, mode, lastUser="", finishReason=""){
   let clean = stripLegacyFormatting(reply);
-  if(!clean) return directChatReply(lastUser, mode) || (mode === "context" ? contextFallback(lastUser) : "");
+  if(!clean) return fallbackChatReply(lastUser, mode);
 
   if(finishReason === "length") clean = completeTruncatedReply(clean);
-  if(!clean) return directChatReply(lastUser, mode) || contextFallback(lastUser);
+  if(!clean) return fallbackChatReply(lastUser, mode);
 
   if(mode !== "task") clean = removeUnrequestedList(clean);
 
@@ -232,5 +236,6 @@ module.exports = {
   isShortContext,
   contextFallback,
   directChatReply,
+  fallbackChatReply,
   hasRecentCrisis
 };
