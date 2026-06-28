@@ -26,6 +26,16 @@ test.describe("MindHub public landing page", () => {
     await expect(page.locator("#stressValue")).toContainText("직장 스트레스");
   });
 
+  test("starts the login-free scenario from the hero call to action", async ({ page }) => {
+    await page.goto("/index.html");
+
+    await page.locator(".hero-actions").getByRole("button", { name: /로그인 없이 데모 보기/ }).click();
+
+    await expect(page.locator("#reportReady")).toHaveText("리포트 완성", { timeout: 8_000 });
+    await expect(page.locator("#demoStatus")).toContainText("완료");
+    await expect(page.locator("#triageDemo")).toBeVisible();
+  });
+
   test("resets the login-free scenario demo to its initial state", async ({ page }) => {
     await page.goto("/index.html");
 
