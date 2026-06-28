@@ -62,4 +62,20 @@ test.describe("MindHub public landing page", () => {
     await expect(page.locator("#dhdr")).toContainText("의사 대시보드");
     await expect(page.locator("#dinner")).toContainText("강하늘 (가상)");
   });
+
+  test("toggles report sharing controls in the login-free demo", async ({ page }) => {
+    await page.goto("/index.html");
+    await page.locator("#demo").scrollIntoViewIfNeeded();
+
+    const sleepRow = page.locator(".report-row[data-share='sleep']");
+    const sleepToggle = sleepRow.locator(".share-toggle");
+
+    await sleepToggle.click();
+    await expect(sleepRow).toHaveClass(/off/);
+    await expect(sleepToggle).toHaveText("비공개");
+
+    await sleepToggle.click();
+    await expect(sleepRow).not.toHaveClass(/off/);
+    await expect(sleepToggle).toHaveText("공유 중");
+  });
 });
