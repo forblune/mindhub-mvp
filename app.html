@@ -415,26 +415,42 @@
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin" onclick="setAuthMode('login')">로그인</button>
-      <button class="auth-tab" id="tabSignup" onclick="setAuthMode('signup')">회원가입</button>
+      <button class="auth-tab" id="tabSignup" onclick="setAuthMode('signup')">회원가입 안내</button>
     </div>
-    <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email" oninput="authMsg('')">
-    <div class="auth-pw-wrap">
-      <input class="auth-input" id="authPw" type="password" placeholder="비밀번호" autocomplete="current-password" oninput="onPwInput()">
-      <button class="auth-eye" type="button" onclick="togglePw('authPw',this)" aria-label="비밀번호 표시">👁</button>
-    </div>
-    <div class="auth-pw-wrap" id="authPw2Wrap" style="display:none">
-      <input class="auth-input" id="authPw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" oninput="authMsg('')">
-      <button class="auth-eye" type="button" onclick="togglePw('authPw2',this)" aria-label="비밀번호 표시">👁</button>
-    </div>
-    <div class="auth-hint" id="authHint" style="display:none">8자 이상 · 대문자·숫자·특수문자 중 2가지 이상</div>
-    <button class="auth-submit" id="authSubmit" onclick="emailAuth()">로그인</button>
-    <div class="auth-msg" id="authMsg"></div>
+    <div id="loginFields">
+      <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email" oninput="authMsg('')">
+      <div class="auth-pw-wrap">
+        <input class="auth-input" id="authPw" type="password" placeholder="비밀번호" autocomplete="current-password" oninput="authMsg('')">
+        <button class="auth-eye" type="button" onclick="togglePw('authPw',this)" aria-label="비밀번호 표시">👁</button>
+      </div>
+      <button class="auth-submit" id="authSubmit" onclick="emailAuth()">로그인</button>
+      <div class="auth-msg" id="authMsg"></div>
 
-    <div class="auth-divider"><span>또는</span></div>
-    <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 계속하기</button>
+      <div class="auth-divider"><span>또는</span></div>
+      <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 계속하기</button>
+    </div>
+    <!-- 신규 가입은 현재 받지 않는다 — 폼 자체를 제공하지 않고 안내만 표시(CSS로 숨기는 것과 다름). -->
+    <div id="signupClosedNotice" style="display:none">
+      <p class="consent-safety"><strong>현재는 지정된 테스트 참여자만 이용할 수 있습니다.</strong><br>MindHub는 포트폴리오·연구용 비공개 검증 단계이며, 실제 진료·진단·치료를 제공하지 않습니다.</p>
+      <p class="consent-safety">기관 도입에 관심 있으시면 <a href="index.html">홈페이지의 기관 도입 상담</a>을 이용해 주세요.</p>
+    </div>
 
     <div class="login-foot">대화와 기록을 보호하기 위해 로그인 후 이용할 수 있어요.</div>
     <a class="login-doctor" href="doctor.html">혹시 의사이신가요? ›</a>
+  </div>
+</div>
+
+<!-- 이용 권한 없음 화면 (로그인은 성공했지만 closed-beta 승인이 없는 계정). -->
+<div class="login-view" id="accessDeniedView" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">MindHub</div>
+    <div class="consent-title">이용 권한이 없어요</div>
+    <div class="consent-body">
+      <p>로그인은 확인됐지만 현재 테스트 이용 권한이 없습니다.</p>
+      <p>MindHub는 현재 포트폴리오·연구용 비공개 검증 단계이며, 환자용 기능은 지정된 테스트 계정에서만 이용할 수 있습니다.</p>
+    </div>
+    <button class="auth-submit" onclick="logout()">로그아웃</button>
+    <a class="login-doctor" href="index.html">← 홈으로</a>
   </div>
 </div>
 
@@ -1585,8 +1601,10 @@ function toast(msg){
 }
 
 /* ===== 로그인 게이트 + 역할 분기 (카카오) ===== */
-function showLogin(){ document.getElementById('loginView').style.display='flex'; }
+function showLogin(){ hideAccessDenied(); document.getElementById('loginView').style.display='flex'; }
 function hideLogin(){ document.getElementById('loginView').style.display='none'; }
+function showAccessDenied(){ hideLogin(); hideConsent(); document.getElementById('accessDeniedView').style.display='flex'; }
+function hideAccessDenied(){ document.getElementById('accessDeniedView').style.display='none'; }
 
 /* 계정 메뉴 표시(로그인 사용자 이름). */
 function setAccount(name, sub){
@@ -1602,18 +1620,15 @@ function kakaoLogin(){
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
 }
 
-/* 이메일/비밀번호 로그인·회원가입 */
+/* 이메일/비밀번호 로그인 — 신규 가입은 현재 받지 않는다(회원가입 탭은 안내만 표시). */
 let authMode = 'login';
 function setAuthMode(m){
-  authMode = m;
-  document.getElementById('tabLogin').classList.toggle('active', m==='login');
-  document.getElementById('tabSignup').classList.toggle('active', m==='signup');
-  document.getElementById('authSubmit').textContent = m==='login' ? '로그인' : '회원가입';
-  document.getElementById('authPw').autocomplete = m==='login' ? 'current-password' : 'new-password';
-  // 회원가입에서만 비밀번호 확인 + 규칙 힌트 표시
-  document.getElementById('authPw2Wrap').style.display = m==='signup' ? '' : 'none';
-  document.getElementById('authHint').style.display    = m==='signup' ? '' : 'none';
-  authMsg(''); onPwInput();
+  authMode = (m === 'signup') ? 'signup' : 'login';
+  document.getElementById('tabLogin').classList.toggle('active', authMode==='login');
+  document.getElementById('tabSignup').classList.toggle('active', authMode==='signup');
+  document.getElementById('loginFields').style.display = authMode==='login' ? '' : 'none';
+  document.getElementById('signupClosedNotice').style.display = authMode==='signup' ? '' : 'none';
+  authMsg('');
 }
 function authMsg(text, ok){
   const el = document.getElementById('authMsg');
@@ -1628,52 +1643,19 @@ function togglePw(id, btn){
 }
 /* 검증 헬퍼 */
 function emailValid(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
-function pwStrong(pw){
-  if(pw.length < 8) return false;
-  let cats = 0;
-  if(/[A-Z]/.test(pw)) cats++;        // 대문자
-  if(/[0-9]/.test(pw)) cats++;        // 숫자
-  if(/[^A-Za-z0-9]/.test(pw)) cats++; // 특수문자
-  return cats >= 2;
-}
-/* 회원가입 모드에서 비밀번호 규칙 충족 여부를 힌트에 실시간 반영 */
-function onPwInput(){
-  if(authMode !== 'signup') return;
-  const pw = document.getElementById('authPw').value;
-  const hint = document.getElementById('authHint');
-  hint.classList.toggle('ok', pwStrong(pw));
-  hint.textContent = pwStrong(pw)
-    ? '✓ 사용 가능한 비밀번호예요'
-    : '8자 이상 · 대문자·숫자·특수문자 중 2가지 이상';
-}
 async function emailAuth(){
   if(!sb){ authMsg('현재 로그인 연결을 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'); return; }
   const email = document.getElementById('authEmail').value.trim();
   const pw    = document.getElementById('authPw').value;
   if(!emailValid(email)){ authMsg('올바른 이메일 형식이 아니에요 (예: name@example.com)'); return; }
   if(!pw){ authMsg('비밀번호를 입력해 주세요'); return; }
-  if(authMode === 'signup'){
-    if(!pwStrong(pw)){ authMsg('비밀번호는 8자 이상이며 대문자·숫자·특수문자 중 2가지 이상이어야 해요'); return; }
-    const pw2 = document.getElementById('authPw2').value;
-    if(pw !== pw2){ authMsg('비밀번호 확인이 일치하지 않아요'); return; }
-  }
   const btn = document.getElementById('authSubmit'); btn.disabled = true; authMsg('처리 중…', true);
   try{
-    if(authMode === 'login'){
-      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-      if(error) throw error;
-      // 성공 → onAuthStateChange → boot()가 역할 분기·진입 처리
-    }else{
-      const { data, error } = await sb.auth.signUp({ email, password: pw });
-      if(error) throw error;
-      if(!data.session){   // 이메일 확인이 켜져 있으면 세션이 안 생김
-        authMsg('확인 메일을 보냈어요. 메일 인증을 마친 뒤 로그인해 주세요.', true);
-        return;
-      }
-      // 세션 생기면 onAuthStateChange → boot()
-    }
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if(error) throw error;
+    // 성공 → onAuthStateChange → boot()가 접근권한 확인 후 진입 처리
   }catch(e){
-    authMsg(authMode==='login' ? '로그인 실패: 이메일/비밀번호를 확인해 주세요' : ('회원가입 실패: ' + (e.message||'다시 시도')));
+    authMsg('이메일 또는 비밀번호를 다시 확인해 주세요.');
   }finally{ btn.disabled = false; }
 }
 async function logout(){
@@ -1706,7 +1688,7 @@ function enterChat(){
 }
 /* 공통 초기화 */
 function initPatientApp(){
-  hideLogin(); hideConsent();
+  hideLogin(); hideConsent(); hideAccessDenied();
   warmBackend();
   renderConvs();
   restoreDraft();
@@ -1743,6 +1725,14 @@ async function boot(){
       .eq('id', u.id).single();
     if(profError) throw profError;
     if(prof?.role === 'doctor'){ location.href = 'doctor.html'; return; }
+    // 로그인 성공 ≠ 이용 허가. closed-beta 승인 여부를 한 번 더 서버(RLS 기반 RPC)에서 확인한다.
+    const { data:hasAccess, error:accessError } = await sb.rpc('has_beta_access');
+    if(accessError) throw accessError;
+    if(!hasAccess){
+      activateScope(null);
+      showAccessDenied();
+      return;
+    }
     activateScope(u.id);        // 계정별 브라우저 저장 영역으로 전환
     if(prof?.share_initialized === true) applyCloudShareSettings(prof);
     else await saveShareSettingsCloud(settings.shareDefault);
