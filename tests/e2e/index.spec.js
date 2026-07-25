@@ -33,6 +33,40 @@ test.describe("MindHub public landing page", () => {
     await expect(finalActions.locator("a.secondary", { hasText: "비공개 테스트 로그인" })).toBeVisible();
   });
 
+  test("keeps the restricted availability card visually distinct in both themes", async ({ page }) => {
+    await page.goto("/index.html");
+
+    // 다크 모드 일괄 배경 지정이 "제한됨" 카드의 muted 구분을 덮어쓰지 않아야 한다(브라우저 QA에서 발견한 회귀).
+    const bg = () => page.evaluate(() => {
+      const g = sel => getComputedStyle(document.querySelector(sel)).backgroundColor;
+      return { open: g(".availability-card.open"), closed: g(".availability-card.closed"), body: getComputedStyle(document.body).backgroundColor };
+    });
+
+    const light = await bg();
+    expect(light.closed).not.toBe(light.open);
+    expect(light.closed).not.toBe(light.body);
+
+    await page.locator(".theme-toggle").click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+    const dark = await bg();
+    expect(dark.closed).not.toBe(dark.open);
+    expect(dark.closed).not.toBe(dark.body);
+  });
+
+  test("gives footer links a large enough tap target", async ({ page }) => {
+    await page.goto("/index.html");
+
+    // 푸터 링크는 문장 안 인라인 링크가 아니므로 WCAG 2.5.8(AA) 24px 최소 크기를 지켜야 한다.
+    const heights = await page.evaluate(() =>
+      [...document.querySelectorAll(".footer-links a")].map(a => a.getBoundingClientRect().height)
+    );
+    expect(heights.length).toBeGreaterThan(0);
+    for(const h of heights){
+      expect(h).toBeGreaterThanOrEqual(24);
+    }
+  });
+
   test("runs the login-free scenario demo to a completed report", async ({ page }) => {
     await page.goto("/index.html");
 
