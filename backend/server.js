@@ -21,6 +21,7 @@ const {
   fallbackAdoptionReply,
   extractResponseText
 } = require("./adoption-consultation");
+const { isPublicStaticFile } = require("./static-files");
 
 const app = express();
 app.disable("x-powered-by");
@@ -340,8 +341,14 @@ app.post("/chat", requireAllowedOrigin, requireAuthenticatedUser, chatLimiter, a
   }
 });
 
-// 프론트 정적 파일 서빙 (상위 폴더의 app.html, index.html 등)
-app.use(express.static(path.join(__dirname, "..")));
+// 프론트 정적 파일 서빙 — 로컬 개발 편의용(app.html/index.html/doctor.html을 백엔드와 같은 Origin으로 열기 위함).
+// 저장소 루트 전체를 express.static으로 열면 .git·backend 소스·SQL 마이그레이션까지 그대로 서빙되므로,
+// 실제로 필요한 공개 파일만 명시적으로 허용한다(그 외 경로는 next()로 넘어가 404).
+const PUBLIC_ROOT = path.join(__dirname, "..");
+app.get("/:file", (req, res, next) => {
+  if(!isPublicStaticFile(req.params.file)) return next();
+  res.sendFile(path.join(PUBLIC_ROOT, req.params.file));
+});
 
 app.use((err, _req, res, _next) => {
   if(err?.message === "CORS_NOT_ALLOWED") return safeError(res, 403, "origin_not_allowed", "허용되지 않은 접속 경로입니다.");
