@@ -21,6 +21,8 @@ backend/            # Solar(Upstage) 프록시 — Render 배포용 (API 키 숨
   server.js
   package.json
   README_배포.md     # Render 배포 가이드
+supabase/migrations/  # 추적되는 스키마 변경 (closed-beta 접근권한 등)
+docs/               # 감사·아키텍처·보안·QA 문서 (아래 참고)
 SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범위 RPC
 ```
 
@@ -30,6 +32,16 @@ SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범�
 - 환자용 AI 대화 앱: `app.html` (로그인 필수)
 - 의사용 무로그인 가상 리포트: `doctor.html?demo=1`
 - 루트의 자동 시나리오는 Solar AI POST·DB 저장을 호출하지 않아 Solar 토큰과 실데이터를 사용하지 않음.
+
+## 설계·안전 문서 (`docs/`)
+- `docs/security/MINDHUB_PUBLIC_DEMO_SAFETY.md`: **공개 데모 안전·개인정보 기준.** 지켜야 할 안전선과 그것이
+  코드 어디에서 강제되는지의 대응, 안전 코드 변경 시 회귀 방지 체크리스트.
+- `docs/audit/MINDHUB_RECOVERY_AUDIT.md`: 복구 작업 착수 전 read-only 감사 결과(코드·Supabase·인증·백엔드).
+- `docs/architecture/SUPABASE_RECOVERY_PLAN.md`: Supabase 연결 점검 결과와 남은 정리 권고.
+  (결론: 연결 불일치는 없었고, 실제 문제는 접근 통제 부재였다.)
+- `docs/architecture/CLOSED_BETA_ACCESS.md`: 기본 거부(default deny) 접근권한 설계와 3계층 강제 구조.
+- `docs/architecture/ADOPTION_INQUIRY_EMAIL.md`: 기관 도입 상담 리드 캡처·이메일 발송 구조.
+- `docs/qa/MINDHUB_RECOVERY_QA.md`: 브라우저 QA 실측 결과(반응형·접근성·다크모드·실패 상태).
 
 ## 프로젝트 문서
 - `프로젝트_가치와_근거.md`: 정신건강 기술, 환자 자기결정권, 안전한 대화 AI 구조에 대한 공식 근거와 MindHub의 가치.
