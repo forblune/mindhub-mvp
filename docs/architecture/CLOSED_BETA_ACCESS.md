@@ -86,3 +86,62 @@ Supabase RLS는 `entries` 테이블 직접 접근만 막는다. `/chat`은 DB에
 - 지정된 테스트 계정에 한해 `app_access_grants.status`를 `'approved'`로 수동 변경(Table Editor 또는 SQL).
 - Supabase Auth 프로젝트 설정에서 신규 가입 자체도 차단(이 마이그레이션은 "가입 후 접근"만 막고,
   "가입 자체"는 막지 않음 — 가입 차단은 Auth 프로젝트 설정의 몫).
+
+---
+
+## 확장 검증 (2026-07-25, 자율 복구 루프)
+
+로컬 임시 PostgreSQL 16에 라이브 스키마를 재현(`auth.users`, `profiles`, `entries`, `is_doctor()`,
+`get_patient_report_entries()`, Supabase의 `ALTER DEFAULT PRIVILEGES`와 `service_role BYPASSRLS`까지)한 뒤
+**25개 시나리오를 전부 통과**했습니다. 운영 프로젝트에는 적용하지 않았습니다.
+
+| # | 시나리오 | 결과 |
+|---|---|---|
+| 1-3 | 신규 가입 → pending 자동 등록, profiles 행 생성, role은 항상 `patient` | PASS |
+| 4-5 | pending: `has_beta_access()`=false, `entries` INSERT 차단 | PASS |
+| 6 | pending: 본인 status 조회는 가능 | PASS |
+| 7 | pending: 자기 자신을 approved로 UPDATE 불가 | PASS |
+| 8-9 | 타인 grant 행 조회 불가, anon 조회 0건 | PASS |
+| 9b | **service_role의 승인 UPDATE가 실제로 1행을 갱신** | PASS |
+| 10-12 | approved: 접근 허용, `entries` INSERT/SELECT 성공 | PASS |
+| 13 | approved라도 타인 `entries`는 조회 불가 | PASS |
+| 14-15 | revoked: 즉시 차단, 기존 기록도 조회 불가 | PASS |
+| 16 | grant 행이 아예 없으면 기본 거부 | PASS |
+| 17-20 | 의사 RPC 회귀 없음, 원문 대화 항상 null, red_flag 근거는 전달, 비의사는 0행 | PASS |
+| 21 | `has_beta_access()` `search_path` 고정 | PASS |
+| 22 | `auth.users` 삭제 시 grant cascade 삭제 | PASS |
+| 23 | `authenticated`는 SELECT만 보유(INSERT/UPDATE/DELETE 없음) | PASS |
+| 24 | `status` CHECK 제약이 임의 값 거부 | PASS |
+
+### 검증 중 발견해 수정한 결함 2건
+
+**1. `service_role`에 명시적 GRANT가 없었다 (잠금 사고 위험).**
+마이그레이션이 `service_role`을 주석에서만 언급하고 실제 권한 부여를 하지 않아, Supabase가 public 스키마에
+설정해 둔 기본 권한(`ALTER DEFAULT PRIVILEGES`)에 암묵적으로 의존하고 있었습니다. 그 설정이 다른 프로젝트에서는
+**"승인할 수 있는 주체가 아무도 없는" 상태**가 될 수 있고, 그러면 운영자가 자기 테스트 계정조차 승인하지 못해
+전원이 잠깁니다. `grant select, insert, update, delete on table public.app_access_grants to service_role;`을
+명시적으로 추가했습니다.
+
+> 이 결함은 처음에 "stub 충실도 문제"로 보였습니다. 로컬 stub이 Supabase의 기본 권한과 `BYPASSRLS`를
+> 재현하지 않아 테스트가 실패했기 때문입니다. stub을 실제와 같게 고친 뒤에도 **명시적 GRANT가 없다는 사실 자체는
+> 남는 위험**이라 판단해 마이그레이션을 고쳤습니다. 아울러 승인 UPDATE가 조용히 0행을 갱신하는 상황을
+> 성공으로 오해하지 않도록 "실제로 1행이 갱신됐는지" 확인하는 검증(9b)을 추가했습니다.
+
+**2. ROLLBACK 블록이 실행하면 신규 가입을 깨뜨렸다.**
+롤백이 `app_access_grants` 테이블을 삭제하지만 `handle_new_user()`는 그 테이블을 계속 참조하도록 남겨서,
+롤백 후 `auth.users` INSERT가 트리거 오류로 실패 → **신규 가입이 전부 깨집니다.** 기존 블록은 주석으로
+"수동 복원 필요"라고만 적혀 있었습니다. 실제로 재현한 뒤, 롤백 블록에 마이그레이션 이전 버전
+`handle_new_user()` 복원을 **테이블 삭제보다 먼저** 수행하도록 포함시켰습니다.
+수정 후 롤백을 실행해 "롤백 후 신규 가입 정상 동작"까지 확인했습니다.
+
+### 알아 두어야 할 의도된 설계 (검증에서 확인)
+
+**의사 계정은 closed-beta 승인 없이도 리포트를 조회할 수 있습니다.** `get_patient_report_entries()`가
+SECURITY DEFINER라 `entries` RLS를 우회하기 때문이며, 이는 의도된 동작입니다.
+
+- 근거: `profiles.role = 'doctor'`는 **service_role만 변경할 수 있으므로**(컬럼 단위 GRANT로 강제) 의사 역할 부여
+  자체가 이미 관리자의 명시적 승인 행위입니다. 즉 "역할"과 "제품 접근 권한"을 분리한 설계 의도와 일치합니다.
+- 위험이 낮은 이유: 의사 경로는 **읽기 전용**이고 환자가 공유하기로 선택한 필드만 보며, Solar를 호출하지 않아
+  과금·남용 벡터가 없습니다.
+- 다만 closed-beta가 모든 것을 막는다고 오해할 수 있어 여기에 명시합니다. 의사에게도 승인을 요구하려면
+  RPC 내부에 `has_beta_access()`를 추가해야 하며, 그 경우 기존 의사 계정도 승인 전까지 리포트를 볼 수 없게 됩니다.

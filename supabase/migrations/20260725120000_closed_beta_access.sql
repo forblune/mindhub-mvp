@@ -90,11 +90,17 @@ from auth.users u
 on conflict (user_id) do nothing;
 
 -- 4) RLS: 본인 행만 조회 가능. INSERT/UPDATE/DELETE 정책은 의도적으로 만들지 않는다
---    (아래 REVOKE로 authenticated/anon은애초에 쓰기 권한이 없음 — service_role만 변경 가능).
+--    (아래 REVOKE로 authenticated/anon은 애초에 쓰기 권한이 없음 — service_role만 변경 가능).
 alter table public.app_access_grants enable row level security;
 
 revoke all on table public.app_access_grants from authenticated, anon;
 grant select on table public.app_access_grants to authenticated;
+
+-- 관리자 경로를 명시적으로 보장한다. Supabase는 public 스키마에 ALTER DEFAULT PRIVILEGES로
+-- service_role에 권한을 주도록 설정돼 있지만, 그 기본 설정에 암묵적으로 의존하면
+-- 설정이 다른 프로젝트에서 "승인할 수 있는 주체가 아무도 없는" 상태가 될 수 있다.
+-- 그 경우 운영자가 자기 테스트 계정조차 승인하지 못해 전원이 잠기므로, 여기서 명시적으로 부여한다.
+grant select, insert, update, delete on table public.app_access_grants to service_role;
 
 drop policy if exists "own access status select" on public.app_access_grants;
 create policy "own access status select"
@@ -144,17 +150,53 @@ commit;
 -- ────────────────────────────────────────────────────────────────
 -- ROLLBACK (수동 실행용 — 이 마이그레이션에는 포함되지 않음, 필요 시에만 아래를 직접 실행)
 -- ────────────────────────────────────────────────────────────────
+-- 주의: handle_new_user() 복원이 반드시 포함돼야 한다. 이것을 빼고 테이블만 삭제하면
+-- 트리거 함수가 사라진 app_access_grants를 계속 참조해 **신규 가입이 전부 실패**한다
+-- (auth.users INSERT가 트리거 오류로 롤백됨). 로컬 검증에서 실제로 재현한 사례다.
+-- 아래 블록은 전체를 한 트랜잭션으로 실행하며, 로컬 Postgres에서 실행·검증했다.
+--
 -- begin;
+--   -- 1) handle_new_user()를 마이그레이션 이전(SUPABASE_보안강화_20260619.sql) 버전으로 복원.
+--   --    반드시 테이블 삭제보다 먼저 수행한다.
+--   create or replace function public.handle_new_user()
+--   returns trigger
+--   language plpgsql
+--   security definer
+--   set search_path = public
+--   as $$
+--   begin
+--     insert into public.profiles (id, display_name)
+--     values (
+--       new.id,
+--       coalesce(
+--         new.raw_user_meta_data->>'name',
+--         new.raw_user_meta_data->>'nickname',
+--         split_part(new.email, '@', 1),
+--         '사용자'
+--       )
+--     )
+--     on conflict (id) do nothing;
+--     return new;
+--   end;
+--   $$;
+--   revoke all on function public.handle_new_user() from public;
+--
+--   -- 2) entries 정책을 has_beta_access() 조건 없는 원래 형태로 복원.
 --   drop policy if exists "patient insert own" on public.entries;
 --   create policy "patient insert own" on public.entries
 --     for insert to authenticated with check (patient_id = auth.uid()::text);
 --   drop policy if exists "patient select own" on public.entries;
 --   create policy "patient select own" on public.entries
 --     for select to authenticated using (patient_id = auth.uid()::text);
+--
+--   -- 3) 이제 안전하게 함수·트리거·테이블을 제거한다(위 1번 이후여야 한다).
 --   drop function if exists public.has_beta_access();
 --   drop trigger if exists app_access_grants_set_updated_at on public.app_access_grants;
 --   drop function if exists public.set_app_access_grants_updated_at();
 --   drop table if exists public.app_access_grants;
---   -- handle_new_user()는 SUPABASE_보안강화_20260619.sql 버전(app_access_grants insert 없는 버전)으로
---   -- create or replace 하여 되돌린다.
 -- commit;
+--
+-- 롤백 후 확인 쿼리:
+--   select prosrc not like '%app_access_grants%' as handle_new_user_restored
+--     from pg_proc where proname = 'handle_new_user';   -- t 여야 한다
+--   select count(*) = 2 as entries_policies_restored from pg_policies where tablename = 'entries';
