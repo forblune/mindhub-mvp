@@ -5,6 +5,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const crypto = require("crypto");
 const {
   CHAT_SYSTEM_PROMPT,
   conversationMode,
@@ -23,6 +24,14 @@ const {
 } = require("./adoption-consultation");
 const { isPublicStaticFile } = require("./static-files");
 const { createRequireBetaAccess } = require("./beta-access");
+const {
+  normalizeInquiryInput,
+  isValidInquiryInput,
+  isHoneypotTriggered,
+  buildInquiryEmail,
+  createInquiryMailer,
+  createDuplicateGuard
+} = require("./adoption-inquiry");
 
 const app = express();
 app.disable("x-powered-by");
@@ -74,6 +83,16 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://vhxvqtbemahbcbrbnkcv.s
 // (과거 손상된 폴백값이 apikey 검증을 깨뜨려 '세션 만료' 버그를 유발한 이력).
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const AUTH_TIMEOUT_MS = 5000;
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const ADOPTION_TO_EMAIL = process.env.ADOPTION_TO_EMAIL || "";
+const ADOPTION_FROM_EMAIL = process.env.ADOPTION_FROM_EMAIL || "";
+const sendInquiryEmail = createInquiryMailer({
+  apiKey: RESEND_API_KEY,
+  fromEmail: ADOPTION_FROM_EMAIL,
+  toEmail: ADOPTION_TO_EMAIL,
+  timeoutMs: 8000
+});
+const inquiryDuplicateGuard = createDuplicateGuard();
 
 function makeRateLimiter({ windowMs, max }){
   const buckets = new Map();
@@ -105,6 +124,8 @@ function makeRateLimiter({ windowMs, max }){
 const chatLimiter = makeRateLimiter({ windowMs:10*60*1000, max:30 });
 const extractLimiter = makeRateLimiter({ windowMs:10*60*1000, max:20 });
 const adoptionLimiter = makeRateLimiter({ windowMs:30*60*1000, max:10 });
+// 이메일 발송은 LLM 답변보다 비용·평판 영향이 크므로 별도로 더 낮은 한도를 둔다(감사 권고 사항).
+const inquiryLimiter = makeRateLimiter({ windowMs:30*60*1000, max:5 });
 function requireAllowedOrigin(req, res, next){
   const origin = req.get("origin");
   if(!origin || !ALLOWED_ORIGINS.has(origin)){
@@ -248,6 +269,43 @@ app.post("/adoption-consult", requireAllowedOrigin, adoptionLimiter, async (req,
     console.error("adoption consult request failed", e.name || "Error", e.message || "");
     return res.json({ reply:fallback, source:"guided_fallback" });
   }
+});
+
+// 기관 도입 상담 실제 접수 — 위 /adoption-consult(즉석 LLM 안내)와 달리 실제 문의를 이메일로 전달한다.
+// 문의 내용은 저장하지 않고(로그에도 남기지 않고) 이메일로만 보낸다.
+app.post("/adoption-inquiry", requireAllowedOrigin, inquiryLimiter, async (req, res) => {
+  const input = normalizeInquiryInput(req.body);
+
+  if(isHoneypotTriggered(input)){
+    // 스팸 봇으로 추정되는 제출 — 실제 발송은 하지 않되, 탐지 사실을 알리지 않기 위해
+    // 정상 사용자와 동일한 성공 응답으로만 위장한다(진짜 사용자에게 거짓 성공을 주는 것과는 다른 경우).
+    return res.json({ ok:true, requestId: crypto.randomUUID() });
+  }
+  if(!isValidInquiryInput(input)){
+    return res.status(400).json({
+      error:"invalid_inquiry_input",
+      message:"기관명, 담당자명, 업무용 이메일, 도입 목적, 규모, 문의 내용을 입력하고 개인정보 수집·이용에 동의해 주세요."
+    });
+  }
+
+  const duplicateId = inquiryDuplicateGuard.check(input);
+  if(duplicateId){
+    return res.json({ ok:true, requestId:duplicateId, duplicate:true });
+  }
+
+  const requestId = crypto.randomUUID();
+  const receivedAt = new Date().toISOString();
+  const { subject, html, text } = buildInquiryEmail(input, { requestId, receivedAt });
+  const result = await sendInquiryEmail({ subject, html, text, replyTo:input.email });
+
+  if(!result.ok){
+    // 문의 전문·이메일 주소는 로그에 남기지 않는다 — 실패 사유·상태코드만 남긴다.
+    console.error("adoption inquiry email send failed", result.reason, result.status || "");
+    return safeError(res, 503, "email_unavailable", "현재 요청을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+
+  inquiryDuplicateGuard.remember(input, requestId);
+  return res.json({ ok:true, requestId });
 });
 
 // 추출 엔드포인트

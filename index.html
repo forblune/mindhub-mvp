@@ -347,13 +347,22 @@
   .consult-field{display:grid;gap:7px;min-width:0}
   .consult-field.full{grid-column:1/-1}
   .consult-field label{font-size:12px;color:var(--sub);font-weight:800}
-  .consult-field select,.consult-field textarea{
+  .consult-field select,.consult-field textarea,.consult-field input[type="text"],.consult-field input[type="email"],.consult-field input[type="tel"]{
     width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);
     padding:11px 13px;font:inherit;font-size:14px;outline:none;
   }
   .consult-field textarea{min-height:94px;resize:vertical;line-height:1.6}
-  .consult-field select:focus,.consult-field textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(22,139,102,.12)}
+  .consult-field select:focus,.consult-field textarea:focus,.consult-field input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(22,139,102,.12)}
   .consult-privacy{grid-column:1/-1;border-radius:12px;background:var(--mint-2);color:var(--sub);padding:11px 13px;font-size:11.5px;line-height:1.6}
+  .consult-consent{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--sub);line-height:1.6}
+  .consult-consent input{margin-top:3px;width:16px;height:16px;flex:none}
+  /* 스팸 봇용 함정 필드 — 사람 사용자에게는 보이지 않고, 스크린리더·탭 이동에서도 제외한다. */
+  .consult-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;visibility:hidden}
+  .consult-status{grid-column:1/-1;border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.6;display:none}
+  .consult-status.on{display:block}
+  .consult-status.ok{background:var(--mint-2);color:var(--green-dark)}
+  .consult-status.err{background:#fdeceb;color:#9c2b22}
+  :root[data-theme="dark"] .consult-status.err{background:#3a1f1c;color:#f3a79c}
   .consult-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
   .consult-actions button{min-height:46px;border-radius:12px;padding:11px 16px;font-weight:800}
   .consult-submit{border:0;background:var(--green);color:#fff}
@@ -406,6 +415,7 @@
   :root[data-theme="dark"] .consult-overlay{background:rgba(0,0,0,.7)}
   :root[data-theme="dark"] .consult-field select,
   :root[data-theme="dark"] .consult-field textarea,
+  :root[data-theme="dark"] .consult-field input,
   :root[data-theme="dark"] .consult-copy{background:#111a17;color:var(--ink)}
 
   @media(max-width:980px){
@@ -835,6 +845,10 @@
       <form id="consultForm" onsubmit="submitAdoptionConsult(event)">
         <div class="consult-grid">
           <div class="consult-field">
+            <label for="consultOrgName">기관명</label>
+            <input type="text" id="consultOrgName" maxlength="100" autocomplete="organization" required>
+          </div>
+          <div class="consult-field">
             <label for="consultOrganization">기관 유형</label>
             <select id="consultOrganization" required>
               <option value="">선택해 주세요</option>
@@ -845,7 +859,19 @@
             </select>
           </div>
           <div class="consult-field">
-            <label for="consultGoal">가장 중요한 목표</label>
+            <label for="consultContactName">담당자명</label>
+            <input type="text" id="consultContactName" maxlength="50" autocomplete="name" required>
+          </div>
+          <div class="consult-field">
+            <label for="consultEmail">업무용 이메일</label>
+            <input type="email" id="consultEmail" maxlength="254" autocomplete="email" placeholder="name@hospital.example" required>
+          </div>
+          <div class="consult-field">
+            <label for="consultPhone">연락처 <span style="font-weight:400">(선택)</span></label>
+            <input type="tel" id="consultPhone" maxlength="30" autocomplete="tel" placeholder="010-0000-0000">
+          </div>
+          <div class="consult-field">
+            <label for="consultGoal">도입 목적</label>
             <select id="consultGoal" required>
               <option value="">선택해 주세요</option>
               <option value="previsit">진료 전 환자 변화 요약</option>
@@ -855,7 +881,7 @@
             </select>
           </div>
           <div class="consult-field">
-            <label for="consultScale">검토 규모</label>
+            <label for="consultScale">예상 이용 인원 또는 규모</label>
             <select id="consultScale" required>
               <option value="">선택해 주세요</option>
               <option value="small">의료진 1~2명·소규모 파일럿</option>
@@ -873,16 +899,30 @@
               <option value="engagement">환자의 자발적 기록 지속</option>
             </select>
           </div>
+          <div class="consult-field">
+            <label for="consultTimeline">희망 일정 <span style="font-weight:400">(선택)</span></label>
+            <input type="text" id="consultTimeline" maxlength="100" placeholder="예: 2026년 3분기 중">
+          </div>
           <div class="consult-field full">
-            <label for="consultWorkflow">현재 업무와 가장 큰 어려움 <span style="font-weight:400">(선택)</span></label>
-            <textarea id="consultWorkflow" maxlength="600" placeholder="예: 재진 환자의 최근 수면·복약 변화를 진료 전에 파악하기 어렵습니다."></textarea>
+            <label for="consultWorkflow">문의 내용</label>
+            <textarea id="consultWorkflow" maxlength="600" required placeholder="예: 재진 환자의 최근 수면·복약 변화를 진료 전에 파악하기 어렵습니다."></textarea>
           </div>
+          <!-- honeypot: 사람 사용자에게는 보이지 않는 필드. 채워져 있으면 봇 제출로 간주해 서버가 조용히 무시한다. -->
+          <div class="consult-hp" aria-hidden="true">
+            <label for="consultWebsite">웹사이트(입력하지 마세요)</label>
+            <input type="text" id="consultWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <label class="consult-consent">
+            <input type="checkbox" id="consultConsent" required>
+            <span>개인정보(기관명·담당자명·이메일·연락처)를 상담 회신 목적으로 수집·이용하는 데 동의합니다. 환자 이름, 진단명, 진료기록 등 실제 의료정보는 작성하지 마세요.</span>
+          </label>
           <div class="consult-privacy">
-            기관명, 담당자 연락처, 실제 환자 정보는 입력하지 마세요. 입력 내용은 상담 결과 생성에만 사용하며 이 사이트에서 별도로 저장하지 않습니다.
+            주민등록번호, 환자 실명, 진료기록, 의료영상, 처방전 등 민감정보와 첨부파일은 받지 않습니다. 문의 내용은 상담 결과 생성과 회신 이메일 발송에만 사용하며 별도 데이터베이스에 저장하지 않습니다.
           </div>
+          <div class="consult-status" id="consultStatus" role="status" aria-live="polite"></div>
         </div>
         <div class="consult-actions">
-          <button class="consult-submit" id="consultSubmit" type="submit">도입 방향 확인하기</button>
+          <button class="consult-submit" id="consultSubmit" type="submit">도입 방향 확인하고 상담 요청 보내기</button>
         </div>
       </form>
       <div class="consult-result" id="consultResult" aria-live="polite">
@@ -1073,7 +1113,7 @@ function openAdoptionConsult(){
   overlay.classList.add('on');
   overlay.setAttribute('aria-hidden','false');
   document.body.classList.add('consult-lock');
-  setTimeout(()=>document.getElementById('consultOrganization').focus(), 0);
+  setTimeout(()=>document.getElementById('consultOrgName').focus(), 0);
 }
 function closeAdoptionConsult(event){
   const overlay = document.getElementById('consultOverlay');
@@ -1106,6 +1146,38 @@ function localConsultResult(data){
 • 이 결과는 초기 도입 방향이며 의료·법률·보안 적합성에 대한 확정 판단이 아닙니다.
 • 진단이나 실시간 응급 모니터링이 아닌 기록·요약·전달 범위에서 효과를 먼저 검증해야 합니다.`;
 }
+function consultEmailValid(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+
+function setConsultStatus(text, ok){
+  const el = document.getElementById('consultStatus');
+  el.textContent = text;
+  el.classList.toggle('on', !!text);
+  el.classList.toggle('ok', ok === true);
+  el.classList.toggle('err', ok === false);
+}
+
+// /adoption-consult(즉석 LLM 안내)와 별개로 실제 문의를 이메일로 전달한다. 실패해도 위 안내 자체는
+// 그대로 보여주고, 이 함수의 성공/실패만 별도 상태 배너로 정직하게 알린다(성공한 것처럼 위장하지 않음).
+async function submitAdoptionInquiry(inquiry){
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), 10000);
+  try{
+    const response = await fetch(CONSULT_BACKEND_URL + '/adoption-inquiry', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(inquiry),
+      signal:controller.signal
+    });
+    const payload = await response.json().catch(()=>({}));
+    if(!response.ok) return { ok:false };
+    return { ok:true, requestId:payload.requestId };
+  }catch(error){
+    return { ok:false };
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
 async function submitAdoptionConsult(event){
   event.preventDefault();
   const submit = document.getElementById('consultSubmit');
@@ -1119,36 +1191,67 @@ async function submitAdoptionConsult(event){
     priority:document.getElementById('consultPriority').value,
     workflow:document.getElementById('consultWorkflow').value.trim()
   };
-  if(!data.organization || !data.goal || !data.scale || !data.priority) return;
+  const inquiry = {
+    orgName:document.getElementById('consultOrgName').value.trim(),
+    orgType:data.organization,
+    contactName:document.getElementById('consultContactName').value.trim(),
+    email:document.getElementById('consultEmail').value.trim(),
+    phone:document.getElementById('consultPhone').value.trim(),
+    purpose:data.goal,
+    scale:data.scale,
+    timeline:document.getElementById('consultTimeline').value.trim(),
+    message:data.workflow,
+    consent:document.getElementById('consultConsent').checked,
+    website:document.getElementById('consultWebsite').value
+  };
+  if(!data.organization || !data.goal || !data.scale || !data.priority || !data.workflow) return;
+  if(!inquiry.orgName || !inquiry.contactName || !inquiry.consent) return;
+  if(!consultEmailValid(inquiry.email)){
+    setConsultStatus('업무용 이메일 형식을 다시 확인해 주세요 (예: name@hospital.example)', false);
+    document.getElementById('consultEmail').focus();
+    return;
+  }
 
   submit.disabled = true;
   submit.textContent = '도입 방향 정리 중…';
+  setConsultStatus('', null);
   result.classList.add('on');
   output.textContent = '기관 조건을 바탕으로 첫 파일럿 범위를 정리하고 있습니다.';
   source.textContent = '분석 중';
 
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(), 14000);
-  try{
-    const response = await fetch(CONSULT_BACKEND_URL + '/adoption-consult', {
+  const [guide, inquiryResult] = await Promise.allSettled([
+    fetch(CONSULT_BACKEND_URL + '/adoption-consult', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(data),
       signal:controller.signal
-    });
-    if(!response.ok) throw new Error('consultation unavailable');
-    const payload = await response.json();
-    output.textContent = payload.reply || localConsultResult(data);
-    source.textContent = payload.source === 'openai' ? 'AI 맞춤 분석' : '기본 도입 가이드';
-  }catch(error){
+    }).then(response => {
+      if(!response.ok) throw new Error('consultation unavailable');
+      return response.json();
+    }),
+    submitAdoptionInquiry(inquiry)
+  ]);
+  clearTimeout(timer);
+
+  if(guide.status === 'fulfilled'){
+    output.textContent = guide.value.reply || localConsultResult(data);
+    source.textContent = guide.value.source === 'openai' ? 'AI 맞춤 분석' : '기본 도입 가이드';
+  }else{
     output.textContent = localConsultResult(data);
     source.textContent = '기본 도입 가이드';
-  }finally{
-    clearTimeout(timer);
-    submit.disabled = false;
-    submit.textContent = '도입 방향 다시 확인하기';
-    result.scrollIntoView({behavior:'smooth',block:'nearest'});
   }
+
+  if(inquiryResult.status === 'fulfilled' && inquiryResult.value.ok){
+    setConsultStatus('도입 상담 요청을 보냈습니다. 확인 후 입력하신 이메일로 연락드리겠습니다.', true);
+  }else{
+    setConsultStatus('현재 요청을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.', false);
+  }
+
+  submit.disabled = false;
+  submit.textContent = '도입 방향 다시 확인하고 상담 요청 다시 보내기';
+  result.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 async function copyConsultResult(){
   const text = document.getElementById('consultOutput').textContent.trim();
