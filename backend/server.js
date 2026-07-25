@@ -24,6 +24,9 @@ const {
 } = require("./adoption-consultation");
 const { isPublicStaticFile } = require("./static-files");
 const { createRequireBetaAccess } = require("./beta-access");
+const { makeRateLimiter } = require("./rate-limiter");
+const { createRequireAllowedOrigin } = require("./origin-guard");
+const { createRequireAuthenticatedUser } = require("./supabase-auth");
 const {
   normalizeInquiryInput,
   isValidInquiryInput,
@@ -94,78 +97,18 @@ const sendInquiryEmail = createInquiryMailer({
 });
 const inquiryDuplicateGuard = createDuplicateGuard();
 
-function makeRateLimiter({ windowMs, max }){
-  const buckets = new Map();
-  return (req, res, next) => {
-    const now = Date.now();
-    const key = req.ip || req.socket.remoteAddress || "unknown";
-    let bucket = buckets.get(key);
-    if(!bucket || now >= bucket.resetAt){
-      bucket = { count:0, resetAt:now + windowMs };
-      buckets.set(key, bucket);
-    }
-    bucket.count += 1;
-    res.set("RateLimit-Limit", String(max));
-    res.set("RateLimit-Remaining", String(Math.max(0, max - bucket.count)));
-    res.set("RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
-    if(bucket.count > max){
-      res.set("Retry-After", String(Math.ceil((bucket.resetAt - now) / 1000)));
-      return res.status(429).json({ error:"too_many_requests", message:"요청이 많아요. 잠시 후 다시 시도해 주세요." });
-    }
-    if(buckets.size > 1000){
-      for(const [ip, value] of buckets){
-        if(now >= value.resetAt) buckets.delete(ip);
-      }
-    }
-    next();
-  };
-}
-
 const chatLimiter = makeRateLimiter({ windowMs:10*60*1000, max:30 });
 const extractLimiter = makeRateLimiter({ windowMs:10*60*1000, max:20 });
 const adoptionLimiter = makeRateLimiter({ windowMs:30*60*1000, max:10 });
 // 이메일 발송은 LLM 답변보다 비용·평판 영향이 크므로 별도로 더 낮은 한도를 둔다(감사 권고 사항).
 const inquiryLimiter = makeRateLimiter({ windowMs:30*60*1000, max:5 });
-function requireAllowedOrigin(req, res, next){
-  const origin = req.get("origin");
-  if(!origin || !ALLOWED_ORIGINS.has(origin)){
-    return safeError(res, 403, "origin_not_allowed", "허용되지 않은 접속 경로입니다.");
-  }
-  next();
-}
-
-async function requireAuthenticatedUser(req, res, next){
-  const authorization = req.get("authorization") || "";
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  if(!match) return safeError(res, 401, "login_required", "대화를 시작하려면 로그인해 주세요.");
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
-  try{
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers:{
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${match[1]}`
-      },
-      signal:controller.signal
-    });
-    if(!r.ok) return safeError(res, 401, "invalid_session", "로그인 세션이 만료됐어요. 다시 로그인해 주세요.");
-    const user = await r.json();
-    if(!user || !user.id) return safeError(res, 401, "invalid_session", "로그인 세션을 확인하지 못했어요.");
-    req.authUser = { id:user.id };
-    req.authToken = match[1];
-    next();
-  }catch(e){
-    return safeError(
-      res,
-      e.name === "AbortError" ? 504 : 503,
-      "auth_unavailable",
-      "로그인 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요."
-    );
-  }finally{
-    clearTimeout(timer);
-  }
-}
+const requireAllowedOrigin = createRequireAllowedOrigin({ allowedOrigins: ALLOWED_ORIGINS, safeError });
+const requireAuthenticatedUser = createRequireAuthenticatedUser({
+  supabaseUrl: SUPABASE_URL,
+  supabaseAnonKey: SUPABASE_ANON_KEY,
+  timeoutMs: AUTH_TIMEOUT_MS,
+  safeError
+});
 
 // closed-beta 게이트: 로그인만으로는 부족하고 app_access_grants.status='approved'까지 있어야 통과한다.
 // 구현은 beta-access.js에 분리(단위 테스트를 위해 fetch를 주입 가능하게 함).
@@ -427,4 +370,9 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 3000;   // Render가 PORT를 주입함
-app.listen(PORT, () => console.log("solar proxy on " + PORT));
+// require.main===module 가드: `node server.js`(또는 npm start)로 직접 실행할 때만 listen한다.
+// 테스트에서는 require("./server").app을 가져와 자체 ephemeral 포트로 띄워 실제 HTTP 요청을 보낸다.
+if(require.main === module){
+  app.listen(PORT, () => console.log("solar proxy on " + PORT));
+}
+module.exports = { app };
