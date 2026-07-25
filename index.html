@@ -331,8 +331,11 @@
   .final-actions .primary{box-shadow:none}
   .final-actions .secondary{background:transparent;color:#fff;border-color:#486058}
   footer{border-top:1px solid var(--line);padding:27px 0;color:var(--muted);font-size:11px}
-  .footer-inner{display:flex;justify-content:space-between;gap:20px}
+  .footer-inner{display:flex;justify-content:space-between;gap:20px;align-items:center}
   .footer-links{display:flex;gap:17px}
+  /* 푸터 링크는 문장 안 인라인 링크가 아니라 독립 링크라 WCAG 2.5.8(AA)의 24px 최소 크기가 적용된다.
+     글자 크기는 그대로 두고 수직 패딩만 줘서 탭 영역을 24px 이상으로 넓힌다. */
+  .footer-links a{display:inline-flex;align-items:center;min-height:24px;padding:3px 0}
 
   /* adoption consultation */
   .consult-overlay{
@@ -398,6 +401,9 @@
   :root[data-theme="dark"] .share-toggle,
   :root[data-theme="dark"] .demo-reset{background:var(--paper);color:var(--ink)}
   :root[data-theme="dark"] .share-toggle.locked{background:transparent}
+  /* 다크 모드에서도 "제한됨" 카드가 muted로 구분되게 유지 — 위 --paper 일괄 지정이
+     라이트 모드의 .closed{background:var(--soft)} 구분을 덮어쓰는 것을 되돌린다. */
+  :root[data-theme="dark"] .availability-card.closed{background:var(--soft)}
   :root[data-theme="dark"] .demo-shell{background:#12241e;border-color:#305046}
   :root[data-theme="dark"] .d-bubble.ai,
   :root[data-theme="dark"] .mini-bubble.ai{background:#1b2924}
