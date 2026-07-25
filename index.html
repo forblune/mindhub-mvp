@@ -193,6 +193,15 @@
   .problem-card h3{font-size:20px;line-height:1.35;margin:12px 0 9px}
   .problem-card p{color:var(--sub);font-size:14px;line-height:1.75}
 
+  /* availability */
+  .availability-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .availability-card{border:1px solid var(--line);border-radius:20px;padding:25px;background:#fff}
+  .availability-card h3{font-size:17px;line-height:1.4;margin-bottom:12px}
+  .availability-card ul{display:grid;gap:8px;color:var(--sub);font-size:13.5px;line-height:1.7;padding-left:18px}
+  .availability-card.closed{background:var(--soft)}
+  .availability-note{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);color:var(--sub);font-size:12px;line-height:1.7}
+  @media(max-width:720px){.availability-grid{grid-template-columns:1fr}}
+
   /* flow */
   .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .flow-card{position:relative;border:1px solid var(--line);background:#fff;border-radius:20px;padding:23px;min-height:220px}
@@ -384,6 +393,7 @@
   :root[data-theme="dark"] .demo-panel,
   :root[data-theme="dark"] .proof-card,
   :root[data-theme="dark"] .business-card,
+  :root[data-theme="dark"] .availability-card,
   :root[data-theme="dark"] .secondary,
   :root[data-theme="dark"] .share-toggle,
   :root[data-theme="dark"] .demo-reset{background:var(--paper);color:var(--ink)}
@@ -519,7 +529,7 @@
         </p>
         <div class="hero-actions">
           <button class="primary" onclick="runDemoFromTop()">▶ 로그인 없이 데모 보기</button>
-          <a class="secondary" href="app.html">로그인 후 환자 AI 체험 →</a>
+          <a class="secondary" href="app.html">비공개 테스트 로그인 →</a>
           <button class="secondary" onclick="openAdoptionConsult()">기관 도입 상담 →</button>
         </div>
         <div class="hero-facts">
@@ -804,17 +814,48 @@
     </div>
   </section>
 
+  <section class="section" id="availability">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">현재 공개 범위</span>
+        <h2>지금 공개된 것은 가상 데모뿐입니다.</h2>
+        <p>MindHub는 포트폴리오·연구용 비공개 검증 단계이며, 실제 진료·진단·치료를 제공하지 않습니다. 실제 환자용 기능은 지정된 테스트 참여자만 이용할 수 있습니다.</p>
+      </div>
+      <div class="availability-grid">
+        <article class="availability-card open">
+          <h3>✅ 누구나 볼 수 있어요</h3>
+          <ul>
+            <li>제품 소개, 작동 방식, 안전 원칙</li>
+            <li>로그인 없는 가상 환자 대화 데모</li>
+            <li>의사용 가상 리포트 데모(<code>doctor.html?demo=1</code>)</li>
+            <li>기관 도입 상담</li>
+          </ul>
+        </article>
+        <article class="availability-card closed">
+          <h3>🔒 지정된 테스트 계정만 이용할 수 있어요</h3>
+          <ul>
+            <li>실제 환자용 AI 대화·기록 저장</li>
+            <li>실제 진료 전 리포트 생성</li>
+            <li>의료기관 실사용 연동</li>
+          </ul>
+          <p class="availability-note">신규 회원가입은 현재 받지 않습니다. 의학적 판단은 항상 의료진이 하며, 실제 환자의 이름·진단명·진료기록 등 의료정보는 어디에도 입력하지 마세요.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <section class="final">
     <div class="container">
       <div class="final-card">
         <div>
           <h2>핵심은 AI가 진단하는 것이 아니라,<br>사라질 뻔한 변화를 전달하는 것입니다.</h2>
-          <p>홈에서는 가상 시나리오를, 환자 앱에서는 로그인 후 실제 AI 대화를 확인할 수 있습니다.</p>
+          <p>지금은 누구나 홈의 가상 시나리오와 의사용 가상 리포트를 체험할 수 있습니다. 실제 환자 앱은 현재 지정된 테스트 참여자만 이용할 수 있는 비공개 검증 단계입니다.</p>
         </div>
         <div class="final-actions">
-          <a class="primary" href="app.html">로그인 후 환자 앱 체험</a>
+          <button class="primary" onclick="runDemoFromTop()">▶ 가상 데모 다시 보기</button>
           <a class="secondary" href="doctor.html?demo=1">의사 리포트 체험</a>
-          <button class="secondary" onclick="openAdoptionConsult()">AI 도입 상담</button>
+          <button class="secondary" onclick="openAdoptionConsult()">기관 도입 상담</button>
+          <a class="secondary" href="app.html">비공개 테스트 로그인 →</a>
         </div>
       </div>
     </div>
@@ -825,7 +866,7 @@
   <div class="container footer-inner">
     <span>MindHub · AI Reboot 21팀 · 연구/가상 데이터 데모</span>
     <div class="footer-links">
-      <a href="app.html">환자 앱</a>
+      <a href="app.html">비공개 테스트 로그인</a>
       <a href="doctor.html?demo=1">의사 화면</a>
       <a href="https://github.com/forblune/mindhub-mvp">GitHub</a>
     </div>

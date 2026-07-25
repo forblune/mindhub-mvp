@@ -12,6 +12,27 @@ test.describe("MindHub public landing page", () => {
     await expect(page.locator('a[href="doctor.html?demo=1"]').first()).toHaveText(/의사 리포트 체험|의사 화면/);
   });
 
+  test("states current public availability and labels the patient app link as a private test login", async ({ page }) => {
+    await page.goto("/index.html");
+
+    const availability = page.locator("#availability");
+    await expect(availability).toContainText("지금 공개된 것은 가상 데모뿐입니다");
+    await expect(availability).toContainText("실제 환자용 AI 대화·기록 저장");
+    await expect(availability).toContainText("신규 회원가입은 현재 받지 않습니다");
+
+    // 실제 환자 앱으로 가는 모든 링크는 "비공개 테스트 로그인"이라고 명시돼야 한다(과도한 실사용 강조 금지).
+    const appLinks = page.locator('a[href="app.html"]');
+    await expect(appLinks).toHaveCount(3);
+    for(const link of await appLinks.all()){
+      await expect(link).toContainText("비공개 테스트 로그인");
+    }
+
+    // 최종 CTA는 가상 데모/의사 리포트/도입 상담을 우선 강조하고, 로그인은 마지막 보조 CTA로만 노출한다.
+    const finalActions = page.locator(".final-actions");
+    await expect(finalActions.locator("button.primary")).toContainText("가상 데모");
+    await expect(finalActions.locator("a.secondary", { hasText: "비공개 테스트 로그인" })).toBeVisible();
+  });
+
   test("runs the login-free scenario demo to a completed report", async ({ page }) => {
     await page.goto("/index.html");
 
