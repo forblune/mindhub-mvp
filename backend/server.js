@@ -62,7 +62,7 @@ app.use(cors({
 app.use(express.json({ limit:"32kb" }));
 
 const API_KEY = process.env.UPSTAGE_API_KEY;          // Render 환경변수
-const MODEL   = process.env.SOLAR_MODEL || "solar-pro2"; // 콘솔에서 본 정확한 모델명으로 환경변수 설정
+const MODEL   = process.env.SOLAR_MODEL || "solar-pro3"; // Upstage 콘솔 기준 현재 권장 모델(2026-07). 다른 모델을 쓰려면 SOLAR_MODEL 환경변수로 지정.
 const SOLAR_URL = "https://api.upstage.ai/v1/chat/completions";
 const SOLAR_TIMEOUT_MS = 8000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

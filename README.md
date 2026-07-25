@@ -40,7 +40,7 @@ SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범�
 
 ## 실제 연동
 1. `backend/` 를 Render에 배포 (backend/README_배포.md 참고).
-2. Render 환경변수: `UPSTAGE_API_KEY`, `SOLAR_MODEL`, 선택적으로 `OPENAI_API_KEY`, `OPENAI_MODEL`.
+2. Render 환경변수: `UPSTAGE_API_KEY`, `SOLAR_MODEL`(기본값 `solar-pro3`), 선택적으로 `OPENAI_API_KEY`, `OPENAI_MODEL`.
 3. `app.html`에서 Supabase 로그인 세션을 확인한 뒤 Bearer 토큰과 함께 Render `/chat`, `/extract` 호출.
 4. Solar 실패 시 로컬 폴백으로 대화와 안전 기능 유지.
 5. Supabase는 인증, 구조화 신호 저장, 환자/의사 역할 분리, 공유 범위 강제에 사용. 일반 대화 원문은 기기에만 두고 안전 근거 원문만 클라우드에 저장.
@@ -51,7 +51,7 @@ SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범�
 cd backend
 npm ci
 # 앱은 dotenv를 쓰지 않으므로 키는 환경변수로 주입한다
-UPSTAGE_API_KEY=발급키 SOLAR_MODEL=solar-pro2 npm start   # http://localhost:3000
+UPSTAGE_API_KEY=발급키 SOLAR_MODEL=solar-pro3 npm start   # http://localhost:3000
 # 또는 Node 20.6+: node --env-file=../.env server.js
 npm test   # 백엔드 회귀 테스트
 ```

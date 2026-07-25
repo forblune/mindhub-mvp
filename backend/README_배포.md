@@ -13,7 +13,7 @@
    - **Instance Type:** Free
 4. **Environment(환경변수) 추가:**
    - `UPSTAGE_API_KEY` = (Upstage 콘솔에서 발급한 키)
-   - `SOLAR_MODEL` = (콘솔에서 본 정확한 모델명, 예: `solar-pro2`)
+   - `SOLAR_MODEL` = (콘솔에서 본 정확한 모델명. 비우면 기본값 `solar-pro3` 사용, 예: `solar-pro3`)
    - `SUPABASE_URL` = (Supabase 프로젝트 URL, 코드의 기본값과 다를 때)
    - `SUPABASE_ANON_KEY` = (Supabase 공개 anon key, 코드의 기본값과 다를 때)
    - `OPENAI_API_KEY` = (선택, 기관 도입 상담을 GPT로 보강할 때만)
