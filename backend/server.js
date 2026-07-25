@@ -22,6 +22,7 @@ const {
   extractResponseText
 } = require("./adoption-consultation");
 const { isPublicStaticFile } = require("./static-files");
+const { createRequireBetaAccess } = require("./beta-access");
 
 const app = express();
 app.disable("x-powered-by");
@@ -131,6 +132,7 @@ async function requireAuthenticatedUser(req, res, next){
     const user = await r.json();
     if(!user || !user.id) return safeError(res, 401, "invalid_session", "로그인 세션을 확인하지 못했어요.");
     req.authUser = { id:user.id };
+    req.authToken = match[1];
     next();
   }catch(e){
     return safeError(
@@ -143,6 +145,15 @@ async function requireAuthenticatedUser(req, res, next){
     clearTimeout(timer);
   }
 }
+
+// closed-beta 게이트: 로그인만으로는 부족하고 app_access_grants.status='approved'까지 있어야 통과한다.
+// 구현은 beta-access.js에 분리(단위 테스트를 위해 fetch를 주입 가능하게 함).
+const requireBetaAccess = createRequireBetaAccess({
+  supabaseUrl: SUPABASE_URL,
+  supabaseAnonKey: SUPABASE_ANON_KEY,
+  timeoutMs: AUTH_TIMEOUT_MS,
+  safeError
+});
 
 async function callSolar(payload, res){
   const controller = new AbortController();
@@ -240,7 +251,7 @@ app.post("/adoption-consult", requireAllowedOrigin, adoptionLimiter, async (req,
 });
 
 // 추출 엔드포인트
-app.post("/extract", requireAllowedOrigin, requireAuthenticatedUser, extractLimiter, async (req, res) => {
+app.post("/extract", requireAllowedOrigin, requireAuthenticatedUser, requireBetaAccess, extractLimiter, async (req, res) => {
   const text = (req.body && req.body.text || "").trim();
   if (!text) return res.json({ sleep_h: null, med_taken: null, mood: null, stressor: null });
   if (text.length > 3000) return res.status(413).json({ error:"input_too_long", message:"메시지는 3,000자 이내로 보내 주세요." });
@@ -286,7 +297,7 @@ app.post("/extract", requireAllowedOrigin, requireAuthenticatedUser, extractLimi
 
 // 채팅 엔드포인트 — 일반 AI처럼 실제 질문에 답하되 의료 안전선을 지키는 대화.
 // 임상 추출은 /extract가 별도로 담당. 위험 감지는 프론트 규칙 기반(RISK_WORDS)이 항상 처리.
-app.post("/chat", requireAllowedOrigin, requireAuthenticatedUser, chatLimiter, async (req, res) => {
+app.post("/chat", requireAllowedOrigin, requireAuthenticatedUser, requireBetaAccess, chatLimiter, async (req, res) => {
   const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
   if (!messages.length) return res.json({ reply: "" });
 
