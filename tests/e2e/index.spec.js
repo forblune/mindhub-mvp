@@ -70,7 +70,6 @@ test.describe("MindHub public landing page", () => {
   test("runs the login-free scenario demo to a completed report", async ({ page }) => {
     await page.goto("/index.html");
 
-    await page.locator("#demo").scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: /시나리오 실행/ }).click();
 
     await expect(page.locator("#reportReady")).toHaveText("리포트 완성", { timeout: 8_000 });
@@ -94,7 +93,6 @@ test.describe("MindHub public landing page", () => {
   test("resets the login-free scenario demo to its initial state", async ({ page }) => {
     await page.goto("/index.html");
 
-    await page.locator("#demo").scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: /시나리오 실행/ }).click();
     await expect(page.locator("#reportReady")).toHaveText("리포트 완성", { timeout: 8_000 });
 
@@ -256,7 +254,6 @@ test.describe("MindHub public landing page", () => {
 
   test("toggles report sharing controls in the login-free demo", async ({ page }) => {
     await page.goto("/index.html");
-    await page.locator("#demo").scrollIntoViewIfNeeded();
 
     const sleepRow = page.locator(".report-row[data-share='sleep']");
     const sleepToggle = sleepRow.locator(".share-toggle");
