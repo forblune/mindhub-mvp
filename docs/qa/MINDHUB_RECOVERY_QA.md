@@ -252,3 +252,47 @@ Chrome 헬퍼 프로세스가 10개 이상 떠 있었습니다(이 코드베이�
 **결론**: 스크롤+클릭 경합은 실제 테스트 버그였고 수정했습니다. 그 위에 세션 특유의 프로세스 경합이 더해져
 증상이 더 산발적으로 보였을 뿐입니다. 둘 다 제품 코드(index.html/app.html/doctor.html/backend)의 결함은
 아니었습니다.
+
+---
+
+## 운영 반영 검증 (2026-07-26) — PR #25 병합·배포
+
+**승인 및 실행**: 사용자가 PR #25 병합과 Render 운영 배포를 명시적으로 승인.
+
+### 병합
+- PR #25: `MERGED` (squash), merge commit `70ae7526a1b0c307b847c25dbd2cafbd0f566638`
+- 새 main SHA: `70ae752` (기존 `dca3adc`)
+- diff가 예상한 3파일과 정확히 일치(+11/-2, +10, +26) — squash 특성상 커밋 그래프상 조상 관계는
+  아니지만 내용은 hotfix 브랜치와 동일함을 확인
+
+### Render 자동 배포
+- rootDir=backend 필터를 통과하는 변경이므로 자동 배포 트리거 예상대로 발생
+- `/.git/HEAD` 노출 SHA가 `f907a727`(구버전)에서 사라지는 시점을 폴링해 배포 반영 확인
+- Manual Deploy **불필요** — 자동 배포로 충분
+
+### 운영 보안 검증 (배포 후, 실제 프로덕션)
+
+| 항목 | 결과 |
+|---|---|
+| `/health` | 200 `ok` |
+| `/index.html` `/app.html` `/doctor.html` `/favicon.png` | 전부 200 |
+| `/.git/HEAD` `/.git/index` `/.git/config` `/.git/packed-refs` `/.git/logs/HEAD` `/.git/refs/heads/main` | 전부 404 |
+| `/backend/server.js` `/backend/static-files.js` `/backend/package.json` | 전부 404 |
+| `/README.md` `/CLAUDE.md` `/.env` `/.env.example` `/package.json` | 전부 404 |
+| `/supabase/migrations/20260725120000_closed_beta_access.sql` | 404 |
+| 404 응답 본문 | 전부 ~150바이트 기본 404 페이지, 실제 파일 내용 유출 0 |
+| `/chat` Origin 없음 | 403 (회귀 없음) |
+| `/chat` 허용 Origin, 무인증 | 401 (회귀 없음) |
+| 공개 홈페이지(`mindhub.forblune.com`) | 200, 정상 렌더 |
+| 무로그인 데모 | 4단계 완주, 109 위기 카드 표시 |
+| `doctor.html?demo=1` | 가상 리포트·"가상" 라벨·안전 고지 정상 |
+| 콘솔 오류 | 0건 |
+
+**결론: 전부 PASS. rollback 불필요.** 첫 헬스체크 시도가 90초 타임아웃 없이 응답이 없었던 것은
+Render 무료 티어 cold start(사전 warm-up 부재)였고, 재시도에서 즉시 응답했습니다 — 검증 자체는
+warm 상태에서 안정적으로 재현됐습니다.
+
+### RC 동기화
+- `rc/mindhub-recovery`에 새 main(`70ae752`) 병합
+- `backend/server.js` 1곳 충돌 — 사전 시뮬레이션과 정확히 동일한 형태, 동일한 방식(HEAD/RC 유지)으로 해결
+- 병합 후 트리가 병합 전 RC와 **완전 동일**(0줄 차이) — 기능 중복 0, 회귀 0. 사전 시뮬레이션이 실제와 정확히 일치했음을 재확인
