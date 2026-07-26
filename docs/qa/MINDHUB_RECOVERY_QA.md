@@ -157,3 +157,59 @@ QA 중 관측된 콘솔 에러는 전부 **테스트 하네스 artifact**였고 
 - 실제 Solar 호출, 실제 이메일 발송 — Hard Stop.
 - 운영 도메인(`mindhub.forblune.com`) 대상 QA — 현재 운영에는 이번 변경이 배포되지 않았으므로
   로컬 `rc` 상태를 대상으로 했다.
+
+---
+
+## 재검증 추가 (2026-07-26)
+
+기존 검증(위 내용)은 코드 변경이 없어 그대로 유효합니다. 이번 재개 세션에서 추가한 것만 기록합니다.
+
+### 신규 뷰포트
+
+| 폭 | 오버플로 | 뷰포트 이탈 요소 |
+|---|---|---|
+| 375px | 0px | 0개 |
+| 430px | 0px | 0개 |
+
+기존 360/390/640/820/1280px 결과와 함께 총 7개 폭 전부 오버플로 0.
+
+### `prefers-reduced-motion: reduce`
+CSS에 해당 미디어쿼리 규칙이 존재함을 확인(`index.html`).
+
+### WebKit 브라우저 추가
+
+`playwright.config.js`에 `webkit`(Desktop Safari 에뮬레이션) 프로젝트를 신규 추가했습니다.
+
+- **단일 워커 실행**: 전체 통과. 재현 확인을 위해 두 차례 개별 재실행했고 각각 통과.
+- **4-worker 병렬 실행**: 63/66, 21/22 등 실행마다 **다른 테스트가** 간헐적으로 실패.
+  같은 테스트가 반복 실패하지 않고 매번 다른 지점에서 실패한다는 사실 자체가 결정적 버그가 아니라
+  **리소스 경합(WebKit 인스턴스가 무거워 병렬 워커 다수 실행 시 CPU 경합 발생)** 임을 뒷받침합니다.
+  실패했던 개별 테스트를 단일 워커로 재실행하면 매번 통과했습니다.
+- **결론**: 제품 코드에 WebKit 전용 결함 없음. CI에서 webkit 프로젝트만 낮은 workers 수
+  (예: `npx playwright test --project=webkit --workers=2`)로 실행할 것을 권고(선택 사항).
+
+### 마이그레이션 재검증
+
+파일이 지난 검증(`837790f`) 이후 변경되지 않았음을 diff로 확인 후, 로컬 Postgres에서 대표 시나리오만
+재실행(전체 25개 재실행 대신 파일 불변 증명 + 핵심 시나리오로 효율화):
+
+- 마이그레이션 2회 연속 적용 — 멱등 확인
+- 기존 사용자 `pending` 자동 백필 확인
+- `service_role` 승인 → `has_beta_access()`=true → `entries` INSERT 성공
+- **ROLLBACK 실행 후 신규 가입 정상 동작** (지난 세션에서 수정한 결함의 회귀 없음 재확인)
+
+전부 PASS. 25개 전체 시나리오의 상세 근거는 `docs/architecture/CLOSED_BETA_ACCESS.md`에 그대로 유지.
+
+### hotfix(PR #25) 독립 재리뷰
+
+- 변경 파일 정확히 3개(`backend/server.js`, `backend/static-files.js`, `backend/static-files.test.js`), RC 전용
+  식별자(`has_beta_access`, `app_access_grants`, `solar-pro3`, `RESEND_API_KEY`, `adoption-inquiry`) 혼입 0건
+- 로컬 실서버로 허용 4파일(200) / 차단 17경로(404, 전부 ~150바이트 기본 404 페이지, 실제 내용 유출 0) /
+  우회 11종(traversal·인코딩·대소문자·중복 slash·null byte·query string) + HTTP 메서드 6종 전부 차단 재확인
+- API 회귀 없음(`/health` 200, `/chat` Origin 없음 403·허용 Origin 무인증 401, `/extract` 동일)
+- backend 73/73 재확인
+
+### hotfix→main→RC 동기화 재시뮬레이션
+
+동일한 결과 재확인: `backend/server.js` 1곳 충돌(HEAD/RC 유지로 해결), 해결 후 트리 해시가 RC와 완전 동일,
+회귀 없음. 원격 브랜치는 변경하지 않음.
