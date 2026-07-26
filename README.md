@@ -21,6 +21,8 @@ backend/            # Solar(Upstage) 프록시 — Render 배포용 (API 키 숨
   server.js
   package.json
   README_배포.md     # Render 배포 가이드
+supabase/migrations/  # 추적되는 스키마 변경 (closed-beta 접근권한 등)
+docs/               # 감사·아키텍처·보안·QA 문서 (아래 참고)
 SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범위 RPC
 ```
 
@@ -31,6 +33,16 @@ SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범�
 - 의사용 무로그인 가상 리포트: `doctor.html?demo=1`
 - 루트의 자동 시나리오는 Solar AI POST·DB 저장을 호출하지 않아 Solar 토큰과 실데이터를 사용하지 않음.
 
+## 설계·안전 문서 (`docs/`)
+- `docs/security/MINDHUB_PUBLIC_DEMO_SAFETY.md`: **공개 데모 안전·개인정보 기준.** 지켜야 할 안전선과 그것이
+  코드 어디에서 강제되는지의 대응, 안전 코드 변경 시 회귀 방지 체크리스트.
+- `docs/audit/MINDHUB_RECOVERY_AUDIT.md`: 복구 작업 착수 전 read-only 감사 결과(코드·Supabase·인증·백엔드).
+- `docs/architecture/SUPABASE_RECOVERY_PLAN.md`: Supabase 연결 점검 결과와 남은 정리 권고.
+  (결론: 연결 불일치는 없었고, 실제 문제는 접근 통제 부재였다.)
+- `docs/architecture/CLOSED_BETA_ACCESS.md`: 기본 거부(default deny) 접근권한 설계와 3계층 강제 구조.
+- `docs/architecture/ADOPTION_INQUIRY_EMAIL.md`: 기관 도입 상담 리드 캡처·이메일 발송 구조.
+- `docs/qa/MINDHUB_RECOVERY_QA.md`: 브라우저 QA 실측 결과(반응형·접근성·다크모드·실패 상태).
+
 ## 프로젝트 문서
 - `프로젝트_가치와_근거.md`: 정신건강 기술, 환자 자기결정권, 안전한 대화 AI 구조에 대한 공식 근거와 MindHub의 가치.
 - `발표_후_보완내용과_조언요청.md`: 발표 이후 보완한 내용과 교수님께 정중하게 조언을 구하는 메시지.
@@ -40,22 +52,34 @@ SUPABASE_보안강화_20260619.sql  # 역할 상승 차단 + 환자 공유 범�
 
 ## 실제 연동
 1. `backend/` 를 Render에 배포 (backend/README_배포.md 참고).
-2. Render 환경변수: `UPSTAGE_API_KEY`, `SOLAR_MODEL`, 선택적으로 `OPENAI_API_KEY`, `OPENAI_MODEL`.
+2. Render 환경변수: `UPSTAGE_API_KEY`, `SOLAR_MODEL`(기본값 `solar-pro3`), 선택적으로 `OPENAI_API_KEY`, `OPENAI_MODEL`.
 3. `app.html`에서 Supabase 로그인 세션을 확인한 뒤 Bearer 토큰과 함께 Render `/chat`, `/extract` 호출.
 4. Solar 실패 시 로컬 폴백으로 대화와 안전 기능 유지.
 5. Supabase는 인증, 구조화 신호 저장, 환자/의사 역할 분리, 공유 범위 강제에 사용. 일반 대화 원문은 기기에만 두고 안전 근거 원문만 클라우드에 저장.
-6. 도입 상담은 기관 유형·목표·규모·우선순위만 받아 초기 파일럿 제안을 생성한다. 입력은 별도로 저장하지 않으며 OpenAI 키가 없으면 규칙 기반 가이드로 동작한다.
+6. 도입 상담 모달은 두 가지를 함께 한다: (a) 기관 유형·목표·규모·우선순위로 초기 파일럿 제안을 즉석 생성(OpenAI 키가 없으면 규칙 기반 가이드로 동작), (b) 기관명·담당자·업무용 이메일 등을 받아 `RESEND_API_KEY`로 운영자(`ADOPTION_TO_EMAIL`)에게 실제 문의 메일을 보낸다. 문의 내용은 이메일로만 전달되고 별도 DB에 저장하지 않으며, 메일 발송이 실패하면 성공한 것처럼 표시하지 않는다(`docs/architecture/ADOPTION_INQUIRY_EMAIL.md`).
 
 ## 로컬 백엔드 실행
 ```bash
 cd backend
 npm ci
 # 앱은 dotenv를 쓰지 않으므로 키는 환경변수로 주입한다
-UPSTAGE_API_KEY=발급키 SOLAR_MODEL=solar-pro2 npm start   # http://localhost:3000
+UPSTAGE_API_KEY=발급키 SOLAR_MODEL=solar-pro3 npm start   # http://localhost:3000
 # 또는 Node 20.6+: node --env-file=../.env server.js
 npm test   # 백엔드 회귀 테스트
 ```
 키 없이 `npm start`만 해도 서버는 뜨지만 `/chat`·`/extract`는 503을 반환한다(대화 폴백은 프론트가 처리).
+
+## 테스트
+Node 18 이상 필요.
+
+```bash
+npm ci
+npx playwright install chromium
+npm run build       # 정적 HTML/JS 문법, HTML id/참조, focused test 검증
+npm test            # 백엔드 회귀 테스트
+npm run test:e2e    # index.html + doctor.html?demo=1 Playwright E2E
+```
+E2E는 로그인 없는 공개 화면만 대상으로 하며, `app.html` 로그인 세션이나 운영 Supabase 데이터는 사용하지 않음.
 
 ## 배포 (프론트)
 - GitHub Pages: Settings → Pages → Branch `main` / `(root)` → 저장.

@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="MindHub는 현재 지정된 테스트 참여자만 이용할 수 있는 비공개 검증 단계입니다. 실제 진료·진단·치료를 제공하지 않습니다.">
+<meta property="og:title" content="MindHub — 비공개 테스트 로그인">
+<meta property="og:description" content="MindHub는 포트폴리오·연구용 비공개 검증 단계입니다. 실제 진료·진단·치료를 제공하지 않습니다.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mindhub.forblune.com/app.html">
+<meta property="og:site_name" content="MindHub">
+<meta property="og:image" content="https://mindhub.forblune.com/mindhub_icon_512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:locale" content="ko_KR">
 <link rel="icon" href="favicon.png">
 <title>MindHub — 무엇이든 이야기해 보세요</title>
 <script>
@@ -201,6 +211,16 @@
   .share-btn.off{ color:var(--muted); }
   .lock{ flex:none; font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:4px; }
   .sec.excluded{ opacity:.45; }
+  .priority-panel{ border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px; background:var(--side); }
+  .priority-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .priority-head span{ font-size:13px; font-weight:700; color:var(--text); }
+  .priority-head small{ flex:none; font-size:11.5px; color:var(--muted); }
+  .priority-item{ display:grid; grid-template-columns:84px minmax(0,1fr); gap:8px; padding:8px 0; border-top:1px solid var(--line); }
+  .priority-item span{ font-size:11.5px; font-weight:700; color:var(--sub); }
+  .priority-item b{ min-width:0; font-size:13px; font-weight:600; line-height:1.55; color:var(--text); overflow-wrap:anywhere; }
+  .priority-item.urgent span{ color:var(--danger); }
+  .priority-item.caution span{ color:#9b6b10; }
+  .priority-empty{ border-top:1px solid var(--line); padding-top:9px; color:var(--muted); font-size:12.5px; line-height:1.6; }
   .rbars{ display:flex; align-items:flex-end; gap:5px; height:54px; margin-top:10px; }
   .rbar{ flex:1; min-width:8px; background:#dfe3e8; border-radius:4px 4px 0 0; position:relative; }
   .rbar.low{ background:#f0b3af; }
@@ -315,7 +335,9 @@
   :root[data-theme="dark"] .triage .b,
   :root[data-theme="dark"] .triage .ev{color:#e3aaa6}
   :root[data-theme="dark"] .sec{background:#101815}
+  :root[data-theme="dark"] .priority-item.caution span{color:#efb45a}
   :root[data-theme="dark"] .rv-note,
+  :root[data-theme="dark"] .priority-panel,
   :root[data-theme="dark"] .consent-body{background:#15251f;border-color:#2f4e43}
   :root[data-theme="dark"] .consent-safety{border-color:#2f4e43}
   :root[data-theme="dark"] .kakao-btn{color:#191600}
@@ -362,6 +384,7 @@
     .crisis .c-line{ align-items:flex-start; flex-direction:column; gap:2px; }
     .sec .top,.set-toggle{ gap:10px; }
     .sec .lbl,.set-toggle .t-lbl{ overflow-wrap:anywhere; }
+    .priority-item{ grid-template-columns:1fr; gap:2px; }
     .rv-actions button{ min-height:46px; padding-left:8px; padding-right:8px; }
     .chat-empty{ padding-left:22px; padding-right:22px; padding-bottom:13vh; }
     .empty-mark{ width:42px; height:42px; margin-bottom:16px; border-radius:14px; font-size:19px; }
@@ -402,26 +425,42 @@
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin" onclick="setAuthMode('login')">로그인</button>
-      <button class="auth-tab" id="tabSignup" onclick="setAuthMode('signup')">회원가입</button>
+      <button class="auth-tab" id="tabSignup" onclick="setAuthMode('signup')">회원가입 안내</button>
     </div>
-    <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email" oninput="authMsg('')">
-    <div class="auth-pw-wrap">
-      <input class="auth-input" id="authPw" type="password" placeholder="비밀번호" autocomplete="current-password" oninput="onPwInput()">
-      <button class="auth-eye" type="button" onclick="togglePw('authPw',this)" aria-label="비밀번호 표시">👁</button>
-    </div>
-    <div class="auth-pw-wrap" id="authPw2Wrap" style="display:none">
-      <input class="auth-input" id="authPw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" oninput="authMsg('')">
-      <button class="auth-eye" type="button" onclick="togglePw('authPw2',this)" aria-label="비밀번호 표시">👁</button>
-    </div>
-    <div class="auth-hint" id="authHint" style="display:none">8자 이상 · 대문자·숫자·특수문자 중 2가지 이상</div>
-    <button class="auth-submit" id="authSubmit" onclick="emailAuth()">로그인</button>
-    <div class="auth-msg" id="authMsg"></div>
+    <div id="loginFields">
+      <input class="auth-input" id="authEmail" type="email" placeholder="이메일" autocomplete="email" oninput="authMsg('')">
+      <div class="auth-pw-wrap">
+        <input class="auth-input" id="authPw" type="password" placeholder="비밀번호" autocomplete="current-password" oninput="authMsg('')">
+        <button class="auth-eye" type="button" onclick="togglePw('authPw',this)" aria-label="비밀번호 표시">👁</button>
+      </div>
+      <button class="auth-submit" id="authSubmit" onclick="emailAuth()">로그인</button>
+      <div class="auth-msg" id="authMsg"></div>
 
-    <div class="auth-divider"><span>또는</span></div>
-    <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 계속하기</button>
+      <div class="auth-divider"><span>또는</span></div>
+      <button class="kakao-btn" onclick="kakaoLogin()">💬 카카오로 계속하기</button>
+    </div>
+    <!-- 신규 가입은 현재 받지 않는다 — 폼 자체를 제공하지 않고 안내만 표시(CSS로 숨기는 것과 다름). -->
+    <div id="signupClosedNotice" style="display:none">
+      <p class="consent-safety"><strong>현재는 지정된 테스트 참여자만 이용할 수 있습니다.</strong><br>MindHub는 포트폴리오·연구용 비공개 검증 단계이며, 실제 진료·진단·치료를 제공하지 않습니다.</p>
+      <p class="consent-safety">기관 도입에 관심 있으시면 <a href="index.html">홈페이지의 기관 도입 상담</a>을 이용해 주세요.</p>
+    </div>
 
     <div class="login-foot">대화와 기록을 보호하기 위해 로그인 후 이용할 수 있어요.</div>
     <a class="login-doctor" href="doctor.html">혹시 의사이신가요? ›</a>
+  </div>
+</div>
+
+<!-- 이용 권한 없음 화면 (로그인은 성공했지만 closed-beta 승인이 없는 계정). -->
+<div class="login-view" id="accessDeniedView" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">MindHub</div>
+    <div class="consent-title">이용 권한이 없어요</div>
+    <div class="consent-body">
+      <p>로그인은 확인됐지만 현재 테스트 이용 권한이 없습니다.</p>
+      <p>MindHub는 현재 포트폴리오·연구용 비공개 검증 단계이며, 환자용 기능은 지정된 테스트 계정에서만 이용할 수 있습니다.</p>
+    </div>
+    <button class="auth-submit" onclick="logout()">로그아웃</button>
+    <a class="login-doctor" href="index.html">← 홈으로</a>
   </div>
 </div>
 
@@ -452,12 +491,12 @@
 <!-- 헤더 -->
 <header class="hdr">
   <div class="side-l">
-    <button class="iconbtn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
+    <button class="iconbtn" id="drawerToggle" onclick="toggleDrawer()" aria-label="메뉴" aria-controls="drawer" aria-expanded="false">☰</button>
   </div>
   <div class="title">MindHub</div>
   <div class="side-r">
-    <button class="iconbtn" onclick="openSearch()" aria-label="검색">🔍</button>
-    <button class="avatar" onclick="toggleAcct()" aria-label="계정">나</button>
+    <button class="iconbtn" onclick="openSearch()" aria-label="검색" aria-controls="drawer">🔍</button>
+    <button class="avatar" id="acctToggle" onclick="toggleAcct()" aria-label="계정" aria-controls="acct" aria-expanded="false">나</button>
   </div>
 </header>
 
@@ -548,11 +587,11 @@
       <div class="help">리포트의 약물 순응도 항목에 모니터링 근거로 표시돼요.</div></div>
 
     <div class="set-sectitle" style="margin-top:22px">리포트 공유 기본값</div>
-    <div class="set-toggle"><span class="t-lbl">① 수면·기능</span><button class="set-switch" id="sd_sleep" onclick="toggleShareDefault('sleep')">공유</button></div>
-    <div class="set-toggle"><span class="t-lbl">② 약물 순응도</span><button class="set-switch" id="sd_med" onclick="toggleShareDefault('med')">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">① 수면·기능</span><button class="set-switch" id="sd_sleep" onclick="toggleShareDefault('sleep')" aria-pressed="false">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">② 약물 순응도</span><button class="set-switch" id="sd_med" onclick="toggleShareDefault('med')" aria-pressed="false">공유</button></div>
     <div class="set-toggle"><span class="t-lbl">③ 안전·자살 리스크</span><span class="lock">🔒 항상 포함</span></div>
-    <div class="set-toggle"><span class="t-lbl">④ 스트레스원·환경</span><button class="set-switch" id="sd_stressor" onclick="toggleShareDefault('stressor')">공유</button></div>
-    <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">⑤ 정신상태·기타</span><button class="set-switch" id="sd_mood" onclick="toggleShareDefault('mood')">공유</button></div>
+    <div class="set-toggle"><span class="t-lbl">④ 스트레스원·환경</span><button class="set-switch" id="sd_stressor" onclick="toggleShareDefault('stressor')" aria-pressed="false">공유</button></div>
+    <div class="set-toggle" style="border-bottom:none"><span class="t-lbl">⑤ 정신상태·기타</span><button class="set-switch" id="sd_mood" onclick="toggleShareDefault('mood')" aria-pressed="false">공유</button></div>
     <div class="help" style="margin-top:8px">저장하면 의사 화면에도 이 공유 범위가 적용돼요. 리포트에서 바로 바꿀 수도 있어요.</div>
 
     <div class="set-sectitle" style="margin-top:22px">안내</div>
@@ -569,10 +608,10 @@
 
 <script>
 /* =========================================================================
-   app.html — 챗봇형 환자 앱 v2 (작업 순서 1~2번: 시작점 + 챗봇 UI 골격)
-   - index.html은 건드리지 않음. 재사용 로직만 가져옴.
-   - 이번 단계 범위: ① 메인 채팅 ② 사이드 메뉴 ③ 계정 메뉴 (골격)
-   - 다음 단계: /chat 실연결(3) · 백그라운드 추출(4) · 위기 카드(5) · 리포트(6) · 설정(7)
+   app.html — 로그인 환자용 ChatGPT형 대화 앱
+   - Supabase 세션 확인 후 환자 계정만 채팅에 진입한다.
+   - Solar 프록시 대화, 백그라운드 임상 추출, 규칙 기반 위기 카드,
+     진료 전 리포트, 공유 설정, 계정별 로컬 기록을 담당한다.
    ========================================================================= */
 
 /* ===== 재사용: index.html에서 가져온 안전·추출 로직 (변경 없음) ===== */
@@ -792,7 +831,7 @@ function aggregate(src){
   const medDays     = src.filter(c => c.sig.med_taken===true).length;
   const medTotal    = src.filter(c => c.sig.med_taken!=null).length;
   const stressors   = [...new Set(src.map(c => c.sig.stressor).filter(Boolean))];
-  const redItem     = src.find(c => c.sig.red_flag);
+  const redItem     = [...src].reverse().find(c => c.sig.red_flag);
   return {
     n: src.length,
     sleepSeries, sleepValid,
@@ -801,6 +840,81 @@ function aggregate(src){
     medDays, medTotal, stressors,
     red: !!redItem, evidence: redItem ? redItem.sig.evidence : null
   };
+}
+
+function sortedReportEntries(src){
+  return [...(src || [])].sort((a,b)=>new Date(a.at || 0)-new Date(b.at || 0));
+}
+function validNumber(value){
+  if(value===null || value===undefined || value==='') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+function recentValues(entries, key, limit){
+  return entries
+    .map(c => validNumber(c?.sig?.[key]))
+    .filter(v => v!==null)
+    .slice(-(limit || 3));
+}
+function topStressor(entries){
+  const counts = new Map();
+  entries.forEach(c => {
+    const stressor = typeof c?.sig?.stressor === 'string' ? c.sig.stressor.trim() : '';
+    if(stressor) counts.set(stressor, (counts.get(stressor) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+}
+function reportInsights(src, share){
+  const entries = sortedReportEntries(src);
+  const a = aggregate(entries);
+  const items = [];
+  const canShow = key => key === 'safety' || !share || share[key] !== false;
+  const add = (key, level, label, text) => {
+    if(canShow(key)) items.push({ key, level, label, text });
+  };
+
+  if(a.red) add('safety', 'urgent', '안전', '위험 표현이 있어 진료 시작 전 현재 안전과 계획/준비 여부 확인이 먼저입니다.');
+
+  const recentSleep = recentValues(entries, 'sleep_h', 3);
+  const lowSleepDays = recentSleep.filter(v => v < 5).length;
+  if(a.sleepAvg!==null && Number(a.sleepAvg) < 5){
+    add('sleep', 'caution', '수면', `평균 수면 ${a.sleepAvg}h로 낮습니다. 최근 ${recentSleep.length || 0}개 기록 중 ${lowSleepDays}개가 5h 미만입니다.`);
+  }else if(recentSleep.length >= 2 && lowSleepDays >= 2){
+    add('sleep', 'caution', '수면', `최근 수면 기록 ${recentSleep.length}개 중 ${lowSleepDays}개가 5h 미만입니다.`);
+  }
+
+  if(a.medTotal){
+    const missed = a.medTotal - a.medDays;
+    const adherence = Math.round((a.medDays / a.medTotal) * 100);
+    if(missed > 0) add('med', 'caution', '복약', `복약 누락 ${missed}건이 있습니다. 확인된 기록 기준 순응도는 ${adherence}%입니다.`);
+  }
+
+  const moods = recentValues(entries, 'mood', entries.length);
+  if(moods.length){
+    const latestMood = moods[moods.length - 1];
+    const moodDrop = moods.length >= 2 ? latestMood - moods[0] : 0;
+    if(latestMood <= 3){
+      add('mood', 'caution', '기분', `최근 기분 점수가 ${latestMood}/10으로 낮습니다. 수면·복약 변화와 함께 확인이 필요합니다.`);
+    }else if(moodDrop <= -2){
+      add('mood', 'caution', '기분', `첫 기록 대비 최근 기분 점수가 ${Math.abs(moodDrop)}점 낮아졌습니다.`);
+    }
+  }
+
+  const stressor = topStressor(entries);
+  if(stressor && stressor[1] >= 2){
+    add('stressor', 'steady', '스트레스원', `${stressor[0]}이 반복해서 언급됐습니다. 최근 악화와 연결되는지 확인해 보세요.`);
+  }
+
+  return items.slice(0, 4);
+}
+function renderInsightPanel(items, emptyText){
+  const body = items.length
+    ? items.map(item => `<div class="priority-item ${item.level}" data-key="${item.key}">
+        <span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.text)}</b></div>`).join('')
+    : `<div class="priority-empty">${escapeHtml(emptyText)}</div>`;
+  return `<div class="priority-panel">
+    <div class="priority-head"><span>진료 전 우선 확인</span><small>${items.length ? '자동 트리아지' : '기록 대기'}</small></div>
+    ${body}</div>`;
 }
 
 function sleepBars(series){
@@ -817,13 +931,14 @@ function secRow(key, label, valHtml){
   const off = !reportShare[key];
   return `<div class="sec${off?' excluded':''}" data-key="${key}">
     <div class="top"><div class="lbl">${label}</div>
-      <button class="share-btn${off?' off':''}" onclick="toggleShare('${key}')">${off?'비공개':'공유 중'}</button></div>
+      <button class="share-btn${off?' off':''}" onclick="toggleShare('${key}')" aria-pressed="${off ? 'true' : 'false'}">${off?'비공개':'공유 중'}</button></div>
     <div class="val">${valHtml}</div></div>`;
 }
 
 function renderReport(src){
+  lastReportSource = src || collected;
   const body = document.getElementById('reportBody');
-  const a = aggregate(src);
+  const a = aggregate(lastReportSource);
   if(a.n===0){
     body.innerHTML = `<div class="rv-empty">아직 정리할 대화가 없어요.<br>채팅에서 일상 얘기를 나누면<br>여기에 자동으로 정리돼요.</div>`;
     return;
@@ -837,6 +952,10 @@ function renderReport(src){
       <div class="b">대화 중 자살/자해 관련 표현이 감지됐어요. 진료 시작 전 안전부터 확인해 주세요.</div>
       <div class="ev">근거 원문: "${escapeHtml(a.evidence||'')}"</div></div>`;
   }
+  h += renderInsightPanel(
+    reportInsights(lastReportSource, reportShare),
+    '아직 우선 확인 항목이 뚜렷하지 않아요. 기록이 더 쌓이면 수면·복약·기분 변화가 자동으로 정리돼요.'
+  );
 
   // ① 수면·기능
   const sleepVal = a.sleepAvg!=null
@@ -869,16 +988,13 @@ async function toggleShare(key){
   reportShare[key] = !reportShare[key];
   settings.shareDefault[key] = reportShare[key];
   persistSettings();
-  const sec = document.querySelector('.sec[data-key="'+key+'"]');
-  if(!sec) return;
-  sec.classList.toggle('excluded', !reportShare[key]);
-  const b = sec.querySelector('.share-btn');
-  if(b){ b.textContent = reportShare[key] ? '공유 중' : '비공개'; b.classList.toggle('off', !reportShare[key]); }
+  renderReport(lastReportSource || collected);
   const saved = await saveShareSettingsCloud(reportShare);
   if(!saved) toast('화면에는 반영됐지만 공유 설정 저장에 실패했어요');
 }
 
 let reportLoadSeq = 0;
+let lastReportSource = null;
 function openReport(){
   closeAll();
   reportShare = { ...settings.shareDefault };   // 설정의 공유 기본값 적용
@@ -933,6 +1049,7 @@ function renderShareDefaults(){
     const b = document.getElementById('sd_'+k); if(!b) return;
     const on = settings.shareDefault[k];
     b.textContent = on ? '공유' : '비공개'; b.classList.toggle('off', !on);
+    b.setAttribute('aria-pressed', on ? 'false' : 'true');
   });
 }
 function toggleShareDefault(k){ settings.shareDefault[k] = !settings.shareDefault[k]; renderShareDefaults(); }
@@ -1279,6 +1396,7 @@ function syncThemeUI(){
     const label = dark ? '일반 모드로 전환' : '다크 모드로 전환';
     el.setAttribute('aria-label', label);
     el.setAttribute('title', label);
+    el.setAttribute('aria-pressed', dark ? 'true' : 'false');
   });
 }
 function setTheme(theme, persist){
@@ -1296,6 +1414,12 @@ syncThemeUI();
 
 /* ===== 사이드 / 계정 메뉴 ===== */
 function scrim(on){ document.getElementById('scrim').classList.toggle('on', on); }
+function syncMenuButtons(){
+  const desktop = window.matchMedia('(min-width:900px)').matches;
+  const drawerOpen = desktop ? !document.body.classList.contains('nav-collapsed') : document.getElementById('drawer').classList.contains('on');
+  document.getElementById('drawerToggle')?.setAttribute('aria-expanded', drawerOpen ? 'true' : 'false');
+  document.getElementById('acctToggle')?.setAttribute('aria-expanded', document.getElementById('acct').classList.contains('on') ? 'true' : 'false');
+}
 function toggleDrawer(){
   document.getElementById('acct').classList.remove('on');
   if(window.matchMedia('(min-width:900px)').matches){
@@ -1305,12 +1429,14 @@ function toggleDrawer(){
     document.getElementById('drawer').classList.toggle('on', open);  // 모바일: 오버레이
     scrim(open);
   }
+  syncMenuButtons();
 }
 function toggleAcct(){
   const a=document.getElementById('acct'); const willOpen=!a.classList.contains('on');
   a.classList.toggle('on', willOpen); document.getElementById('drawer').classList.remove('on'); scrim(willOpen);
+  syncMenuButtons();
 }
-function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); }
+function closeAll(){ document.getElementById('drawer').classList.remove('on'); document.getElementById('acct').classList.remove('on'); scrim(false); syncMenuButtons(); }
 
 function openSearch(){
   const drawer = document.getElementById('drawer');
@@ -1321,8 +1447,10 @@ function openSearch(){
     drawer.classList.add('on');
     scrim(true);
   }
+  syncMenuButtons();
   setTimeout(()=>document.getElementById('convSearch').focus(), 0);
 }
+syncMenuButtons();
 
 function newChat(){
   if(sending){ toast('답변을 마친 뒤 새 대화를 시작할 수 있어요'); return; }
@@ -1483,8 +1611,10 @@ function toast(msg){
 }
 
 /* ===== 로그인 게이트 + 역할 분기 (카카오) ===== */
-function showLogin(){ document.getElementById('loginView').style.display='flex'; }
+function showLogin(){ hideAccessDenied(); document.getElementById('loginView').style.display='flex'; }
 function hideLogin(){ document.getElementById('loginView').style.display='none'; }
+function showAccessDenied(){ hideLogin(); hideConsent(); document.getElementById('accessDeniedView').style.display='flex'; }
+function hideAccessDenied(){ document.getElementById('accessDeniedView').style.display='none'; }
 
 /* 계정 메뉴 표시(로그인 사용자 이름). */
 function setAccount(name, sub){
@@ -1500,18 +1630,15 @@ function kakaoLogin(){
   sb.auth.signInWithOAuth({ provider:'kakao', options:{ redirectTo: location.href } });
 }
 
-/* 이메일/비밀번호 로그인·회원가입 */
+/* 이메일/비밀번호 로그인 — 신규 가입은 현재 받지 않는다(회원가입 탭은 안내만 표시). */
 let authMode = 'login';
 function setAuthMode(m){
-  authMode = m;
-  document.getElementById('tabLogin').classList.toggle('active', m==='login');
-  document.getElementById('tabSignup').classList.toggle('active', m==='signup');
-  document.getElementById('authSubmit').textContent = m==='login' ? '로그인' : '회원가입';
-  document.getElementById('authPw').autocomplete = m==='login' ? 'current-password' : 'new-password';
-  // 회원가입에서만 비밀번호 확인 + 규칙 힌트 표시
-  document.getElementById('authPw2Wrap').style.display = m==='signup' ? '' : 'none';
-  document.getElementById('authHint').style.display    = m==='signup' ? '' : 'none';
-  authMsg(''); onPwInput();
+  authMode = (m === 'signup') ? 'signup' : 'login';
+  document.getElementById('tabLogin').classList.toggle('active', authMode==='login');
+  document.getElementById('tabSignup').classList.toggle('active', authMode==='signup');
+  document.getElementById('loginFields').style.display = authMode==='login' ? '' : 'none';
+  document.getElementById('signupClosedNotice').style.display = authMode==='signup' ? '' : 'none';
+  authMsg('');
 }
 function authMsg(text, ok){
   const el = document.getElementById('authMsg');
@@ -1526,52 +1653,19 @@ function togglePw(id, btn){
 }
 /* 검증 헬퍼 */
 function emailValid(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
-function pwStrong(pw){
-  if(pw.length < 8) return false;
-  let cats = 0;
-  if(/[A-Z]/.test(pw)) cats++;        // 대문자
-  if(/[0-9]/.test(pw)) cats++;        // 숫자
-  if(/[^A-Za-z0-9]/.test(pw)) cats++; // 특수문자
-  return cats >= 2;
-}
-/* 회원가입 모드에서 비밀번호 규칙 충족 여부를 힌트에 실시간 반영 */
-function onPwInput(){
-  if(authMode !== 'signup') return;
-  const pw = document.getElementById('authPw').value;
-  const hint = document.getElementById('authHint');
-  hint.classList.toggle('ok', pwStrong(pw));
-  hint.textContent = pwStrong(pw)
-    ? '✓ 사용 가능한 비밀번호예요'
-    : '8자 이상 · 대문자·숫자·특수문자 중 2가지 이상';
-}
 async function emailAuth(){
   if(!sb){ authMsg('현재 로그인 연결을 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'); return; }
   const email = document.getElementById('authEmail').value.trim();
   const pw    = document.getElementById('authPw').value;
   if(!emailValid(email)){ authMsg('올바른 이메일 형식이 아니에요 (예: name@example.com)'); return; }
   if(!pw){ authMsg('비밀번호를 입력해 주세요'); return; }
-  if(authMode === 'signup'){
-    if(!pwStrong(pw)){ authMsg('비밀번호는 8자 이상이며 대문자·숫자·특수문자 중 2가지 이상이어야 해요'); return; }
-    const pw2 = document.getElementById('authPw2').value;
-    if(pw !== pw2){ authMsg('비밀번호 확인이 일치하지 않아요'); return; }
-  }
   const btn = document.getElementById('authSubmit'); btn.disabled = true; authMsg('처리 중…', true);
   try{
-    if(authMode === 'login'){
-      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-      if(error) throw error;
-      // 성공 → onAuthStateChange → boot()가 역할 분기·진입 처리
-    }else{
-      const { data, error } = await sb.auth.signUp({ email, password: pw });
-      if(error) throw error;
-      if(!data.session){   // 이메일 확인이 켜져 있으면 세션이 안 생김
-        authMsg('확인 메일을 보냈어요. 메일 인증을 마친 뒤 로그인해 주세요.', true);
-        return;
-      }
-      // 세션 생기면 onAuthStateChange → boot()
-    }
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if(error) throw error;
+    // 성공 → onAuthStateChange → boot()가 접근권한 확인 후 진입 처리
   }catch(e){
-    authMsg(authMode==='login' ? '로그인 실패: 이메일/비밀번호를 확인해 주세요' : ('회원가입 실패: ' + (e.message||'다시 시도')));
+    authMsg('이메일 또는 비밀번호를 다시 확인해 주세요.');
   }finally{ btn.disabled = false; }
 }
 async function logout(){
@@ -1604,7 +1698,7 @@ function enterChat(){
 }
 /* 공통 초기화 */
 function initPatientApp(){
-  hideLogin(); hideConsent();
+  hideLogin(); hideConsent(); hideAccessDenied();
   warmBackend();
   renderConvs();
   restoreDraft();
@@ -1641,6 +1735,14 @@ async function boot(){
       .eq('id', u.id).single();
     if(profError) throw profError;
     if(prof?.role === 'doctor'){ location.href = 'doctor.html'; return; }
+    // 로그인 성공 ≠ 이용 허가. closed-beta 승인 여부를 한 번 더 서버(RLS 기반 RPC)에서 확인한다.
+    const { data:hasAccess, error:accessError } = await sb.rpc('has_beta_access');
+    if(accessError) throw accessError;
+    if(!hasAccess){
+      activateScope(null);
+      showAccessDenied();
+      return;
+    }
     activateScope(u.id);        // 계정별 브라우저 저장 영역으로 전환
     if(prof?.share_initialized === true) applyCloudShareSettings(prof);
     else await saveShareSettingsCloud(settings.shareDefault);

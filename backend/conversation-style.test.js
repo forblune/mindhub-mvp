@@ -93,6 +93,18 @@ test("토큰 제한으로 잘린 마지막 단어를 사용자에게 노출하�
   );
 });
 
+test("작업형 답변이 문장 없이 잘리면 감정형 폴백을 섞지 않는다", () => {
+  assert.equal(
+    normalizeChatReply(
+      "설정 파일에서 포트 값을 확인하고 서버를 재시작",
+      "task",
+      "이 에러 어떻게 고쳐?",
+      "length"
+    ),
+    ""
+  );
+});
+
 test("위기 답변의 연락처 중복은 안전 확인 문장으로 교체한다", () => {
   assert.equal(
     normalizeChatReply(

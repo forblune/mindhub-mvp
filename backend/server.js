@@ -5,6 +5,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const crypto = require("crypto");
 const {
   CHAT_SYSTEM_PROMPT,
   conversationMode,
@@ -22,6 +23,18 @@ const {
   extractResponseText
 } = require("./adoption-consultation");
 const { isPublicStaticFile } = require("./static-files");
+const { createRequireBetaAccess } = require("./beta-access");
+const { makeRateLimiter } = require("./rate-limiter");
+const { createRequireAllowedOrigin } = require("./origin-guard");
+const { createRequireAuthenticatedUser } = require("./supabase-auth");
+const {
+  normalizeInquiryInput,
+  isValidInquiryInput,
+  isHoneypotTriggered,
+  buildInquiryEmail,
+  createInquiryMailer,
+  createDuplicateGuard
+} = require("./adoption-inquiry");
 
 const app = express();
 app.disable("x-powered-by");
@@ -61,7 +74,7 @@ app.use(cors({
 app.use(express.json({ limit:"32kb" }));
 
 const API_KEY = process.env.UPSTAGE_API_KEY;          // Render 환경변수
-const MODEL   = process.env.SOLAR_MODEL || "solar-pro2"; // 콘솔에서 본 정확한 모델명으로 환경변수 설정
+const MODEL   = process.env.SOLAR_MODEL || "solar-pro3"; // Upstage 콘솔 기준 현재 권장 모델(2026-07). 다른 모델을 쓰려면 SOLAR_MODEL 환경변수로 지정.
 const SOLAR_URL = "https://api.upstage.ai/v1/chat/completions";
 const SOLAR_TIMEOUT_MS = 8000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -73,76 +86,38 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://vhxvqtbemahbcbrbnkcv.s
 // (과거 손상된 폴백값이 apikey 검증을 깨뜨려 '세션 만료' 버그를 유발한 이력).
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const AUTH_TIMEOUT_MS = 5000;
-
-function makeRateLimiter({ windowMs, max }){
-  const buckets = new Map();
-  return (req, res, next) => {
-    const now = Date.now();
-    const key = req.ip || req.socket.remoteAddress || "unknown";
-    let bucket = buckets.get(key);
-    if(!bucket || now >= bucket.resetAt){
-      bucket = { count:0, resetAt:now + windowMs };
-      buckets.set(key, bucket);
-    }
-    bucket.count += 1;
-    res.set("RateLimit-Limit", String(max));
-    res.set("RateLimit-Remaining", String(Math.max(0, max - bucket.count)));
-    res.set("RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
-    if(bucket.count > max){
-      res.set("Retry-After", String(Math.ceil((bucket.resetAt - now) / 1000)));
-      return res.status(429).json({ error:"too_many_requests", message:"요청이 많아요. 잠시 후 다시 시도해 주세요." });
-    }
-    if(buckets.size > 1000){
-      for(const [ip, value] of buckets){
-        if(now >= value.resetAt) buckets.delete(ip);
-      }
-    }
-    next();
-  };
-}
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const ADOPTION_TO_EMAIL = process.env.ADOPTION_TO_EMAIL || "";
+const ADOPTION_FROM_EMAIL = process.env.ADOPTION_FROM_EMAIL || "";
+const sendInquiryEmail = createInquiryMailer({
+  apiKey: RESEND_API_KEY,
+  fromEmail: ADOPTION_FROM_EMAIL,
+  toEmail: ADOPTION_TO_EMAIL,
+  timeoutMs: 8000
+});
+const inquiryDuplicateGuard = createDuplicateGuard();
 
 const chatLimiter = makeRateLimiter({ windowMs:10*60*1000, max:30 });
 const extractLimiter = makeRateLimiter({ windowMs:10*60*1000, max:20 });
 const adoptionLimiter = makeRateLimiter({ windowMs:30*60*1000, max:10 });
-function requireAllowedOrigin(req, res, next){
-  const origin = req.get("origin");
-  if(!origin || !ALLOWED_ORIGINS.has(origin)){
-    return safeError(res, 403, "origin_not_allowed", "허용되지 않은 접속 경로입니다.");
-  }
-  next();
-}
+// 이메일 발송은 LLM 답변보다 비용·평판 영향이 크므로 별도로 더 낮은 한도를 둔다(감사 권고 사항).
+const inquiryLimiter = makeRateLimiter({ windowMs:30*60*1000, max:5 });
+const requireAllowedOrigin = createRequireAllowedOrigin({ allowedOrigins: ALLOWED_ORIGINS, safeError });
+const requireAuthenticatedUser = createRequireAuthenticatedUser({
+  supabaseUrl: SUPABASE_URL,
+  supabaseAnonKey: SUPABASE_ANON_KEY,
+  timeoutMs: AUTH_TIMEOUT_MS,
+  safeError
+});
 
-async function requireAuthenticatedUser(req, res, next){
-  const authorization = req.get("authorization") || "";
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  if(!match) return safeError(res, 401, "login_required", "대화를 시작하려면 로그인해 주세요.");
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
-  try{
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers:{
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${match[1]}`
-      },
-      signal:controller.signal
-    });
-    if(!r.ok) return safeError(res, 401, "invalid_session", "로그인 세션이 만료됐어요. 다시 로그인해 주세요.");
-    const user = await r.json();
-    if(!user || !user.id) return safeError(res, 401, "invalid_session", "로그인 세션을 확인하지 못했어요.");
-    req.authUser = { id:user.id };
-    next();
-  }catch(e){
-    return safeError(
-      res,
-      e.name === "AbortError" ? 504 : 503,
-      "auth_unavailable",
-      "로그인 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요."
-    );
-  }finally{
-    clearTimeout(timer);
-  }
-}
+// closed-beta 게이트: 로그인만으로는 부족하고 app_access_grants.status='approved'까지 있어야 통과한다.
+// 구현은 beta-access.js에 분리(단위 테스트를 위해 fetch를 주입 가능하게 함).
+const requireBetaAccess = createRequireBetaAccess({
+  supabaseUrl: SUPABASE_URL,
+  supabaseAnonKey: SUPABASE_ANON_KEY,
+  timeoutMs: AUTH_TIMEOUT_MS,
+  safeError
+});
 
 async function callSolar(payload, res){
   const controller = new AbortController();
@@ -239,8 +214,45 @@ app.post("/adoption-consult", requireAllowedOrigin, adoptionLimiter, async (req,
   }
 });
 
+// 기관 도입 상담 실제 접수 — 위 /adoption-consult(즉석 LLM 안내)와 달리 실제 문의를 이메일로 전달한다.
+// 문의 내용은 저장하지 않고(로그에도 남기지 않고) 이메일로만 보낸다.
+app.post("/adoption-inquiry", requireAllowedOrigin, inquiryLimiter, async (req, res) => {
+  const input = normalizeInquiryInput(req.body);
+
+  if(isHoneypotTriggered(input)){
+    // 스팸 봇으로 추정되는 제출 — 실제 발송은 하지 않되, 탐지 사실을 알리지 않기 위해
+    // 정상 사용자와 동일한 성공 응답으로만 위장한다(진짜 사용자에게 거짓 성공을 주는 것과는 다른 경우).
+    return res.json({ ok:true, requestId: crypto.randomUUID() });
+  }
+  if(!isValidInquiryInput(input)){
+    return res.status(400).json({
+      error:"invalid_inquiry_input",
+      message:"기관명, 담당자명, 업무용 이메일, 도입 목적, 규모, 문의 내용을 입력하고 개인정보 수집·이용에 동의해 주세요."
+    });
+  }
+
+  const duplicateId = inquiryDuplicateGuard.check(input);
+  if(duplicateId){
+    return res.json({ ok:true, requestId:duplicateId, duplicate:true });
+  }
+
+  const requestId = crypto.randomUUID();
+  const receivedAt = new Date().toISOString();
+  const { subject, html, text } = buildInquiryEmail(input, { requestId, receivedAt });
+  const result = await sendInquiryEmail({ subject, html, text, replyTo:input.email });
+
+  if(!result.ok){
+    // 문의 전문·이메일 주소는 로그에 남기지 않는다 — 실패 사유·상태코드만 남긴다.
+    console.error("adoption inquiry email send failed", result.reason, result.status || "");
+    return safeError(res, 503, "email_unavailable", "현재 요청을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+
+  inquiryDuplicateGuard.remember(input, requestId);
+  return res.json({ ok:true, requestId });
+});
+
 // 추출 엔드포인트
-app.post("/extract", requireAllowedOrigin, requireAuthenticatedUser, extractLimiter, async (req, res) => {
+app.post("/extract", requireAllowedOrigin, requireAuthenticatedUser, requireBetaAccess, extractLimiter, async (req, res) => {
   const text = (req.body && req.body.text || "").trim();
   if (!text) return res.json({ sleep_h: null, med_taken: null, mood: null, stressor: null });
   if (text.length > 3000) return res.status(413).json({ error:"input_too_long", message:"메시지는 3,000자 이내로 보내 주세요." });
@@ -286,7 +298,7 @@ app.post("/extract", requireAllowedOrigin, requireAuthenticatedUser, extractLimi
 
 // 채팅 엔드포인트 — 일반 AI처럼 실제 질문에 답하되 의료 안전선을 지키는 대화.
 // 임상 추출은 /extract가 별도로 담당. 위험 감지는 프론트 규칙 기반(RISK_WORDS)이 항상 처리.
-app.post("/chat", requireAllowedOrigin, requireAuthenticatedUser, chatLimiter, async (req, res) => {
+app.post("/chat", requireAllowedOrigin, requireAuthenticatedUser, requireBetaAccess, chatLimiter, async (req, res) => {
   const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
   if (!messages.length) return res.json({ reply: "" });
 
@@ -358,4 +370,9 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 3000;   // Render가 PORT를 주입함
-app.listen(PORT, () => console.log("solar proxy on " + PORT));
+// require.main===module 가드: `node server.js`(또는 npm start)로 직접 실행할 때만 listen한다.
+// 테스트에서는 require("./server").app을 가져와 자체 ephemeral 포트로 띄워 실제 HTTP 요청을 보낸다.
+if(require.main === module){
+  app.listen(PORT, () => console.log("solar proxy on " + PORT));
+}
+module.exports = { app };
