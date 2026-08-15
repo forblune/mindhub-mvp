@@ -4,18 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="환자의 일상 대화를 수면·복약·기분·스트레스·안전 신호로 정리해 진료 전 리포트로 전달하는 MindHub 데모">
-<meta property="og:title" content="MindHub — 진료실 밖의 변화를 진료 전 10초로">
+<meta property="og:title" content="MindHub — 환자 기록을 진료 전 요약으로">
 <meta property="og:description" content="환자는 평소처럼 대화하고, 의사는 환자가 공유한 임상 신호만 빠르게 확인합니다.">
 <meta property="og:type" content="website">
 <link rel="icon" href="favicon.png">
-<title>MindHub — 진료실 밖의 변화를 진료 전 10초로</title>
+<title>MindHub — 환자 기록을 진료 전 요약으로</title>
 <script>
   (() => {
     let theme = '';
     try { theme = localStorage.getItem('mindhub_theme') || ''; } catch(e) {}
-    if(theme !== 'light' && theme !== 'dark'){
-      theme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
+    if(theme !== 'light' && theme !== 'dark') theme = 'light';
     document.documentElement.dataset.theme = theme;
   })();
 </script>
@@ -1245,39 +1243,7 @@ window.addEventListener('storage', e => {
 });
 
 function initializeScrollReveal(){
-  if(!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const groups = [
-    '.hero-intro',
-    '.preview',
-    '.story-kicker',
-    '.story-band h2',
-    '.story-lead',
-    '.story-step',
-    '.section-head',
-    '.problem-card',
-    '.flow-card',
-    '.demo-shell',
-    '.proof-card',
-    '.solar-card',
-    '.business-card',
-    '.final-card'
-  ];
-  const elements = [...document.querySelectorAll(groups.join(','))];
-  elements.forEach((element,index) => {
-    element.dataset.reveal = '';
-    if(element.matches('.story-step,.problem-card,.flow-card,.proof-card,.business-card')){
-      element.dataset.revealDelay = String(index % 3 + 1);
-    }
-  });
-  document.documentElement.classList.add('motion-ready');
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if(!entry.isIntersecting) return;
-      entry.target.classList.add('revealed');
-      observer.unobserve(entry.target);
-    });
-  }, {threshold:.12,rootMargin:'0px 0px -7% 0px'});
-  elements.forEach(element => observer.observe(element));
+  document.documentElement.classList.remove('motion-ready');
 }
 
 syncThemeUI();
