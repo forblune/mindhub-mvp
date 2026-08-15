@@ -468,6 +468,62 @@
     .panel-head{height:auto;min-height:55px;gap:8px;padding-top:10px;padding-bottom:10px}
     .final-actions{min-width:0}
   }
+
+  /* Editorial visual pass: keep the product evidence and reading order visible. */
+  .nav{background:var(--paper);backdrop-filter:none}
+  .brand-mark{border-radius:2px;background:var(--green);box-shadow:none}
+  .theme-toggle,.nav-cta,.primary,.secondary{border-radius:2px;box-shadow:none}
+  .primary:hover,.secondary:hover{transform:none;box-shadow:none}
+  .eyebrow{display:block;width:max-content;max-width:100%;padding:0 0 0 10px;border:0;border-left:2px solid var(--green);border-radius:0;background:transparent;letter-spacing:.08em;text-transform:uppercase}
+  .eyebrow::before{display:none}
+  .hero{padding:82px 0 76px}
+  .hero::before,.hero::after{display:none}
+  .hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,.92fr);gap:clamp(40px,6vw,84px);align-items:center;text-align:left}
+  .hero h1{max-width:760px;margin:18px 0 24px;font-size:clamp(46px,5.2vw,70px);line-height:1.04;letter-spacing:-.055em}
+  .hero h1 em{white-space:normal}
+  .hero-copy{max-width:650px;margin:0;font-size:17px}
+  .hero-actions{justify-content:flex-start;margin-top:26px}
+  .hero-actions .secondary{padding:12px 2px;border:0;border-bottom:1px solid var(--line);background:transparent}
+  .hero-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));justify-content:stretch;gap:0;margin-top:34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .fact{padding:10px 12px 10px 0;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent}
+  .fact+.fact{padding-left:12px}.fact:last-child{border-right:0}
+  .preview{min-height:500px;margin:0;border-radius:0;background:var(--soft);box-shadow:none}
+  .preview-phone,.preview-report{border-radius:2px;box-shadow:none}
+  .preview-note{border-radius:0;box-shadow:none}
+  .phone-avatar,.mini-bubble,.mini-input,.alert-mini{border-radius:2px}
+  .story-band::before,.story-band::after{display:none}
+  .story-step{border-radius:0;background:transparent;backdrop-filter:none}
+  .story-step:not(:last-child)::after{border-radius:0}
+  .problem-grid{grid-template-columns:1fr;gap:0;border-top:1px solid var(--line)}
+  .problem-card{display:grid;grid-template-columns:70px minmax(220px,.75fr) minmax(0,1fr);gap:20px;align-items:start;padding:22px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
+  .problem-card:hover{transform:none;box-shadow:none;border-color:var(--line)}
+  .problem-card h3{margin:0}.problem-card p{margin:0}
+  .flow{gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .flow-card{min-height:0;padding:22px 18px;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent}
+  .flow-card:last-child{border-right:0}.flow-card:not(:last-child)::after{display:none}
+  .flow-icon{width:auto;height:auto;display:block;border-radius:0;background:transparent;color:var(--green);font:800 11px/1.2 ui-monospace,monospace}
+  .flow-card small{position:static;display:block;margin-top:16px}
+  .demo-shell,.demo-panel,.proof-card,.solar-card,.business-card,.reason,.kpi,.report-row,.arch-row,.final-card,.consult-modal,.consult-output{border-radius:2px;box-shadow:none}
+  .demo-shell{background:transparent;border-color:var(--line)}
+  .proof-grid,.business-grid{gap:14px}
+  .arch-icon{width:42px;border-radius:0;background:transparent;color:var(--green);font:800 8px/1 ui-monospace,monospace}
+  .tag,.panel-head span,.report-ready,.share-toggle,.solar-badge,.consult-source{border-radius:2px}
+  .final-card{background:#08120f}
+
+  @media(max-width:980px){
+    .hero-grid{grid-template-columns:1fr}.preview{max-width:none;margin:0}
+  }
+  @media(max-width:720px){
+    .hero{padding:54px 0 58px}.hero h1{font-size:clamp(40px,11vw,54px)}
+    .hero-facts{grid-template-columns:1fr}.fact{border-right:0;border-bottom:1px solid var(--line);padding:9px 0}.fact+.fact{padding-left:0}.fact:last-child{border-bottom:0}
+    .preview{margin-top:8px;border-radius:0}
+    .problem-card{grid-template-columns:44px 1fr}.problem-card p{grid-column:2}
+    .flow{border-bottom:0}.flow-card{border-right:0;border-bottom:1px solid var(--line);padding-inline:0}
+  }
+  @media(max-width:460px){
+    .hero-actions{align-items:flex-start}.hero-actions .secondary{width:auto;min-height:0}
+    .preview{border-radius:0}
+  }
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -500,23 +556,21 @@
   <section class="hero">
     <div class="container hero-grid">
       <div class="hero-intro">
-        <span class="eyebrow">AI Reboot 21팀 · 가상 환자 데이터</span>
-        <h1>진료 사이 <em>13일의 변화</em>를<br>진료 전 10초로.</h1>
+        <span class="eyebrow">포트폴리오 데모 · 모든 기록은 가상 데이터</span>
+        <h1><em>13일의 기록</em>을<br>진료 전에 읽을 수 있는 1장으로.</h1>
         <p class="hero-copy">
-          환자는 설문을 새로 작성하지 않고 <strong>평소처럼 AI와 대화</strong>합니다.
-          MindHub는 수면·복약·기분·스트레스·안전 신호를 구조화하고,
-          <strong>환자가 공유한 범위만</strong> 의사의 진료 전 리포트로 전달합니다.
+          환자는 별도 설문 대신 평소처럼 대화합니다. MindHub는 그 기록에서
+          수면·복약·기분·스트레스·안전 후보를 구분하고,
+          <strong>환자가 고른 범위만</strong> 읽기 전용 진료 전 리포트에 담습니다.
         </p>
         <div class="hero-actions">
           <button class="primary" onclick="runDemoFromTop()">▶ 로그인 없이 데모 보기</button>
-          <a class="secondary" href="app.html">로그인 후 환자 AI 체험 →</a>
-          <button class="secondary" onclick="openAdoptionConsult()">기관 도입 상담 →</button>
+          <a class="secondary" href="app.html">환자 화면 열기 →</a>
         </div>
         <div class="hero-facts">
-          <span class="fact"><b>0개</b> 추가 설문</span>
-          <span class="fact"><b>5개</b> 임상 신호 영역</span>
-          <span class="fact"><b>로컬 규칙</b> 안전 감지</span>
-          <span class="fact"><b>환자 선택</b> 공유 범위</span>
+          <span class="fact"><b>입력</b> 평소 대화</span>
+          <span class="fact"><b>정리</b> 5개 신호 영역</span>
+          <span class="fact"><b>출력</b> 환자 선택 리포트</span>
         </div>
       </div>
 
@@ -605,25 +659,25 @@
       </div>
       <div class="flow">
         <article class="flow-card">
-          <div class="flow-icon">💬</div>
+          <div class="flow-icon">01</div>
           <h3>1. 평소처럼 대화</h3>
           <p>코딩·식사·회사 이야기까지 일반 AI처럼 대화합니다. 별도 임상 설문을 강요하지 않습니다.</p>
           <small>환자 부담 최소화</small>
         </article>
         <article class="flow-card">
-          <div class="flow-icon">✦</div>
+          <div class="flow-icon">02</div>
           <h3>2. 필요한 신호만 추출</h3>
           <p>임상 후보가 있는 문장에서 수면·복약·기분·스트레스 신호만 구조화합니다.</p>
           <small>Solar 호출 절감</small>
         </article>
         <article class="flow-card">
-          <div class="flow-icon">🔒</div>
+          <div class="flow-icon">03</div>
           <h3>3. 환자가 공유 선택</h3>
           <p>수면·복약·스트레스·기분은 환자가 공개 여부를 고릅니다. 안전 신호는 사전 고지 후 보호 항목으로 둡니다.</p>
           <small>환자 통제권</small>
         </article>
         <article class="flow-card">
-          <div class="flow-icon">▤</div>
+          <div class="flow-icon">04</div>
           <h3>4. 의사는 예외부터 확인</h3>
           <p>위험 플래그, 추세, 복약 여부를 한 장에서 확인합니다. 의사는 추가 입력 없이 읽기만 합니다.</p>
           <small>진료 전 10초 목표</small>
@@ -718,11 +772,11 @@
           <h3>동작 아키텍처</h3>
           <p>핵심 기능별로 실패 범위와 권한을 분리했습니다.</p>
           <div class="architecture">
-            <div class="arch-row"><span class="arch-icon">💬</span><span><b>ChatGPT형 환자 앱</b><small>대화 기록·검색·리포트 공유 설정</small></span><span class="done">구현</span></div>
-            <div class="arch-row"><span class="arch-icon">🛡</span><span><b>브라우저 안전 감지</b><small>위험 키워드는 AI·네트워크와 독립 실행</small></span><span class="done">구현</span></div>
+            <div class="arch-row"><span class="arch-icon">CHAT</span><span><b>대화형 환자 앱</b><small>대화 기록·검색·리포트 공유 설정</small></span><span class="done">구현</span></div>
+            <div class="arch-row"><span class="arch-icon">RULE</span><span><b>브라우저 안전 감지</b><small>위험 키워드는 AI·네트워크와 독립 실행</small></span><span class="done">구현</span></div>
             <div class="arch-row"><span class="arch-icon">AI</span><span><b>Render + Solar</b><small>범용 대화와 임상 후보 문장 구조화</small></span><span class="done">구현</span></div>
             <div class="arch-row"><span class="arch-icon">DB</span><span><b>Supabase RLS + 보안 RPC</b><small>역할 상승 차단·비공개 필드 서버 단계 제거</small></span><span class="done">구현</span></div>
-            <div class="arch-row"><span class="arch-icon">▤</span><span><b>읽기 전용 의사 대시보드</b><small>위험 플래그와 환자 공유 정보만 조회</small></span><span class="done">구현</span></div>
+            <div class="arch-row"><span class="arch-icon">READ</span><span><b>읽기 전용 의사 대시보드</b><small>위험 플래그와 환자 공유 정보만 조회</small></span><span class="done">구현</span></div>
           </div>
         </article>
 
