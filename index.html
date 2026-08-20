@@ -7,6 +7,12 @@
 <meta property="og:title" content="MindHub — 환자 기록을 진료 전 요약으로">
 <meta property="og:description" content="환자는 평소처럼 대화하고, 의사는 환자가 공유한 임상 신호만 빠르게 확인합니다.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://mindhub.forblune.com/">
+<meta property="og:site_name" content="MindHub">
+<meta property="og:image" content="https://mindhub.forblune.com/mindhub_icon_512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:locale" content="ko_KR">
 <link rel="icon" href="favicon.png">
 <title>MindHub — 환자 기록을 진료 전 요약으로</title>
 <script>
@@ -62,6 +68,7 @@
   }
   .theme-toggle:hover{background:var(--soft)}
   .nav-consult{background:var(--ink);box-shadow:none}
+  .nav-doctor{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none;display:inline-flex;align-items:center}
   .brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:800}
   .brand-mark{
     width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,var(--green),#55c39d);
@@ -539,11 +546,13 @@
       <a href="#demo">인터랙티브 데모</a>
       <a href="#proof">안전·기술</a>
       <a href="#business">사업화</a>
+      <a href="doctor.html?demo=1">의사 화면</a>
     </div>
     <div class="nav-actions">
       <button class="theme-toggle" type="button" onclick="toggleTheme()" data-theme-button aria-label="다크 모드로 전환" title="다크 모드로 전환">
         <span data-theme-icon aria-hidden="true">☾</span>
       </button>
+      <a class="nav-cta nav-doctor" href="doctor.html?demo=1">의사 화면 체험</a>
       <button class="nav-cta nav-consult" onclick="openAdoptionConsult()">도입 상담</button>
       <button class="nav-cta nav-demo" onclick="runDemoFromTop()">90초 데모</button>
     </div>
