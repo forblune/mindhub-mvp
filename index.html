@@ -7,6 +7,12 @@
 <meta property="og:title" content="MindHub — 환자 기록을 진료 전 요약으로">
 <meta property="og:description" content="환자는 평소처럼 대화하고, 의사는 환자가 공유한 임상 신호만 빠르게 확인합니다.">
 <meta property="og:type" content="website">
+<link rel="canonical" href="https://mindhub.forblune.com/">
+<meta property="og:url" content="https://mindhub.forblune.com/">
+<meta property="og:image" content="https://mindhub.forblune.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.png">
 <title>MindHub — 환자 기록을 진료 전 요약으로</title>
 <script>
@@ -37,7 +43,7 @@
   body{
     color:var(--ink);background:var(--paper);
     font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
-    letter-spacing:-.015em;line-height:1.6;overflow-wrap:break-word;
+    letter-spacing:-.015em;line-height:1.6;word-break:keep-all;overflow-wrap:break-word;
   }
   button,a{font:inherit;touch-action:manipulation}
   a{color:inherit;text-decoration:none}
@@ -345,6 +351,9 @@
   .consult-field{display:grid;gap:7px;min-width:0}
   .consult-field.full{grid-column:1/-1}
   .consult-field label{font-size:12px;color:var(--sub);font-weight:800}
+  .req{color:var(--green-dark);font-style:normal;font-weight:800;margin-left:3px}
+  .req-note{margin:0 0 13px;font-size:12px;color:var(--sub)}
+  .req-note .req{margin-left:0}
   .consult-field select,.consult-field textarea{
     width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);
     padding:11px 13px;font:inherit;font-size:14px;outline:none;
@@ -885,9 +894,10 @@
     </div>
     <div class="consult-body">
       <form id="consultForm" onsubmit="submitAdoptionConsult(event)">
+        <p class="req-note"><em class="req" aria-hidden="true">*</em> 표시는 필수 항목입니다</p>
         <div class="consult-grid">
           <div class="consult-field">
-            <label for="consultOrganization">기관 유형</label>
+            <label for="consultOrganization">기관 유형<em class="req" aria-hidden="true">*</em></label>
             <select id="consultOrganization" required>
               <option value="">선택해 주세요</option>
               <option value="clinic">정신건강의학과 의원</option>
@@ -897,7 +907,7 @@
             </select>
           </div>
           <div class="consult-field">
-            <label for="consultGoal">가장 중요한 목표</label>
+            <label for="consultGoal">가장 중요한 목표<em class="req" aria-hidden="true">*</em></label>
             <select id="consultGoal" required>
               <option value="">선택해 주세요</option>
               <option value="previsit">진료 전 환자 변화 요약</option>
@@ -907,7 +917,7 @@
             </select>
           </div>
           <div class="consult-field">
-            <label for="consultScale">검토 규모</label>
+            <label for="consultScale">검토 규모<em class="req" aria-hidden="true">*</em></label>
             <select id="consultScale" required>
               <option value="">선택해 주세요</option>
               <option value="small">의료진 1~2명·소규모 파일럿</option>
@@ -916,7 +926,7 @@
             </select>
           </div>
           <div class="consult-field">
-            <label for="consultPriority">가장 중요한 기준</label>
+            <label for="consultPriority">가장 중요한 기준<em class="req" aria-hidden="true">*</em></label>
             <select id="consultPriority" required>
               <option value="">선택해 주세요</option>
               <option value="speed">진료 준비 시간 단축</option>
